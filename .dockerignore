@@ -1,0 +1,3 @@
+/.git
+/qlever/*
+!/qlever/docker-entrypoint.sh

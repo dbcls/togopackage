@@ -1,0 +1,7 @@
+person_list:
+  description: List demo people and their projects.
+  variables: [Person, name, project]
+
+project_list:
+  description: List demo projects.
+  variables: [Project, label, description]

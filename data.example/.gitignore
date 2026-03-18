@@ -1,0 +1,10 @@
+*
+!/.gitignore
+!/config.yaml
+!/rdf-config/
+!/rdf-config/demo/
+!/rdf-config/demo/model.yaml
+!/rdf-config/demo/prefix.yaml
+!/rdf-config/demo/sparql.yaml
+!/sources/
+!/sources/demo.ttl

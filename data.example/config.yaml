@@ -1,0 +1,7 @@
+sparql_backend: qlever
+
+source:
+  - name: Demo dataset
+    path: ./sources/demo.ttl
+    format: ttl
+    graph: http://example.org/graph/demo

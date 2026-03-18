@@ -1,0 +1,7 @@
+# Default Tabulae query to verify the pipeline.
+# endpoint: http://127.0.0.1:7001/sparql
+SELECT ?s ?p ?o
+WHERE {
+  ?s ?p ?o .
+}
+LIMIT 10

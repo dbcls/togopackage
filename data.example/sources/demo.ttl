@@ -1,0 +1,38 @@
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix ex: <http://example.org/resource/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+ex:Person a rdfs:Class ;
+  rdfs:label "Person"@en .
+
+ex:Project a rdfs:Class ;
+  rdfs:label "Project"@en .
+
+ex:alice a ex:Person, foaf:Person ;
+  foaf:name "Alice" ;
+  foaf:mbox <mailto:alice@example.org> ;
+  ex:knows ex:bob ;
+  ex:memberOf ex:demo_project .
+
+ex:bob a ex:Person, foaf:Person ;
+  foaf:name "Bob" ;
+  foaf:mbox <mailto:bob@example.org> ;
+  ex:knows ex:alice, ex:carol ;
+  ex:memberOf ex:demo_project .
+
+ex:carol a ex:Person, foaf:Person ;
+  foaf:name "Carol" ;
+  foaf:mbox <mailto:carol@example.org> ;
+  ex:knows ex:alice ;
+  ex:memberOf ex:demo_project, ex:data_ops_project .
+
+ex:demo_project a ex:Project ;
+  rdfs:label "Demo Project"@en ;
+  dcterms:description "A small RDF dataset for TogoPackage demos."@en ;
+  ex:hasMember ex:alice, ex:bob, ex:carol .
+
+ex:data_ops_project a ex:Project ;
+  rdfs:label "Data Ops Project"@en ;
+  dcterms:description "A second RDF project for TogoPackage demos."@en ;
+  ex:hasMember ex:carol .

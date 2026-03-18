@@ -1,0 +1,24 @@
+[submodule "sparql-proxy"]
+	path = vendor/sparql-proxy
+	url = https://github.com/dbcls/sparql-proxy
+	branch = main
+[submodule "sparqlist"]
+	path = vendor/sparqlist
+	url = https://github.com/dbcls/sparqlist
+	branch = main
+[submodule "grasp"]
+	path = vendor/grasp
+	url = https://github.com/dbcls/grasp
+	branch = main
+[submodule "tabulae"]
+	path = vendor/tabulae
+	url = https://github.com/dbcls/tabulae
+	branch = main
+[submodule "togomcp"]
+	path = vendor/togomcp
+	url = https://github.com/dbcls/togomcp
+	branch = main
+[submodule "rdf-config"]
+	path = vendor/rdf-config
+	url = https://github.com/dbcls/rdf-config
+	branch = master

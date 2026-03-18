@@ -1,0 +1,53 @@
+{
+  log default {
+    output stdout
+    format json
+  }
+}
+
+:7000 {
+  handle /tabulae {
+    redir /tabulae /tabulae/
+  }
+  handle /tabulae* {
+    root * /data/tabulae/dist
+    uri strip_prefix /tabulae
+    file_server
+  }
+  @sparql_proxy_assets {
+    path /sparql.html
+    path /admin
+    path /admin/*
+    path /socket.io*
+    path /*.js
+    path /*.css
+    path /*.svg
+    path /*.eot
+    path /*.ttf
+    path /*.woff
+    path /*.woff2
+    path /*.map
+  }
+  handle @sparql_proxy_assets {
+    reverse_proxy 127.0.0.1:{$SPARQL_PROXY_PORT}
+  }
+  handle /sparqlist* {
+    reverse_proxy 127.0.0.1:{$SPARQLIST_PORT}
+  }
+  handle /grasp* {
+    reverse_proxy 127.0.0.1:{$GRASP_PORT}
+  }
+  handle /mcp* {
+    reverse_proxy 127.0.0.1:{$TOGOMCP_PORT}
+  }
+  handle /sse {
+    reverse_proxy 127.0.0.1:{$TOGOMCP_PORT}
+  }
+  handle /messages* {
+    reverse_proxy 127.0.0.1:{$TOGOMCP_PORT}
+  }
+  handle /sparql* {
+    reverse_proxy 127.0.0.1:{$SPARQL_PROXY_PORT}
+  }
+  reverse_proxy 127.0.0.1:{$SUPERVISOR_HTTP_PORT}
+}

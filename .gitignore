@@ -1,0 +1,4 @@
+# Python (minimal)
+__pycache__/
+*.pyc
+supervisor/target/

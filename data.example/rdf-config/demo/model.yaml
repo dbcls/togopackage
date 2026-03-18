@@ -1,0 +1,16 @@
+- Person ex:alice:
+  - a: ex:Person
+  - foaf:name:
+    - name: '"Alice"'
+  - foaf:mbox:
+    - email: <mailto:alice@example.org>
+  - ex:memberOf:
+    - project: Project
+- Project ex:demo_project:
+  - a: ex:Project
+  - rdfs:label:
+    - label: '"Demo Project"@en'
+  - dcterms:description:
+    - description: '"A small RDF dataset for TogoPackage demos."@en'
+  - ex:hasMember:
+    - member: Person
