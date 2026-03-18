@@ -8,20 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install the packages needed for building the binaries (this is a separate
 # stage to keep the final image small).
 FROM docker.io/adfreiburg/qlever:latest AS qlever-prebuilt
-# Build tabulae with frontend assets.
-FROM docker.io/library/rust:1.94-bullseye AS tabulae-build
-WORKDIR /tabulae
-RUN apt-get update && apt-get install -y curl tar && rm -rf /var/lib/apt/lists/*
-RUN curl -fsSL https://bun.sh/install | bash
-ENV BUN_INSTALL="/root/.bun"
-ENV PATH="$BUN_INSTALL/bin:$PATH"
-COPY vendor/tabulae/Cargo.toml vendor/tabulae/Cargo.lock ./
-RUN mkdir -p src && printf '%s\n' 'fn main() {}' > src/main.rs
-RUN cargo build --locked --release
-COPY vendor/tabulae/src ./src
-COPY vendor/tabulae/build.rs ./build.rs
-COPY vendor/tabulae/frontend ./frontend
-RUN cargo build --locked --release --features frontend
+FROM ghcr.io/dbcls/tabulae:latest AS tabulae-prebuilt
 
 FROM docker.io/library/rust:1.94-bullseye AS supervisor-build
 WORKDIR /supervisor
@@ -75,7 +62,8 @@ COPY --from=qlever-prebuilt /qlever/e2e/* /qlever/e2e/
 USER root
 
 # Install Caddy.
-RUN curl -fsSL "https://caddyserver.com/api/download?os=linux&arch=amd64" -o /usr/bin/caddy && chmod +x /usr/bin/caddy
+ARG TARGETARCH
+RUN curl -fsSL "https://caddyserver.com/api/download?os=linux&arch=${TARGETARCH}" -o /usr/bin/caddy && chmod +x /usr/bin/caddy
 
 # Install uv (Python package manager) system-wide.
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
@@ -94,10 +82,8 @@ ENV TOGOMCP_DIR=/vendor/togomcp
 
 RUN install -d -m 0755 -o togo -g togo /togo/defaults
 COPY --chown=togo:togo packaging/defaults /togo/defaults
-COPY --from=tabulae-build /tabulae/target/release/tabulae /usr/local/bin/tabulae
+COPY --from=tabulae-prebuilt /usr/local/bin/tabulae /usr/local/bin/tabulae
 COPY --from=supervisor-build /supervisor/target/release/togopackage-supervisor /usr/local/bin/togopackage-supervisor
-RUN install -d -m 0755 -o togo -g togo /qlever/tabulae \
-  && cp -a /vendor/tabulae/queries/. /qlever/tabulae/queries/
 
 # Install sparql-proxy.
 RUN cd /vendor/sparql-proxy && npm ci && npm run build

@@ -338,7 +338,7 @@ If you work on this repository itself, these directories are the main entry poin
 
 - `packaging/`: container build files, bundled defaults, and runtime setup scripts
 - `supervisor/`: Rust-based process supervisor and dashboard server
-- `vendor/`: bundled component repositories such as `sparql-proxy`, `sparqlist`, `grasp`, `tabulae`, and `togomcp`
+- `vendor/`: bundled component repositories such as `sparql-proxy`, `sparqlist`, `grasp`, and `togomcp`
 - `data/`: bind-mounted runtime state, generated artifacts, caches, and local inputs
 
 ## Component READMEs
@@ -346,7 +346,6 @@ If you work on this repository itself, these directories are the main entry poin
 - [vendor/sparql-proxy/README.md](vendor/sparql-proxy/README.md)
 - [vendor/sparqlist/README.md](vendor/sparqlist/README.md)
 - [vendor/grasp/README.md](vendor/grasp/README.md)
-- [vendor/tabulae/README.md](vendor/tabulae/README.md)
 - [vendor/togomcp/README.md](vendor/togomcp/README.md)
 
 QLever and Virtuoso do not currently have separate component READMEs in this repository.

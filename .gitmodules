@@ -10,10 +10,6 @@
 	path = vendor/grasp
 	url = https://github.com/dbcls/grasp
 	branch = main
-[submodule "tabulae"]
-	path = vendor/tabulae
-	url = https://github.com/dbcls/tabulae
-	branch = main
 [submodule "togomcp"]
 	path = vendor/togomcp
 	url = https://github.com/dbcls/togomcp
