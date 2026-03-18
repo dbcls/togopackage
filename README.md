@@ -195,36 +195,36 @@ Important behavior:
 This section summarizes what TogoPackage prepares at startup.
 
 - `QLever`
-  - Resolves source files into `./data/sources/source-manifest.json`
-  - Builds or reuses indexes under `./data/qlever/index`
-  - Tracks the current input hash in `./data/qlever/index/.loaded-input-hash`
+  - Resolves source files into `/path/to/data/sources/source-manifest.json`
+  - Builds or reuses indexes under `/path/to/data/qlever/index`
+  - Tracks the current input hash in `/path/to/data/qlever/index/.loaded-input-hash`
   - Rebuilds when `/data/config.yaml` or resolved source files change
 - Input refresh
   - Recreating a cached `.gz` source also refreshes the decompressed file used by loaders
 - `Virtuoso`
-  - Generates `./data/virtuoso/virtuoso.ini` on first startup
-  - Stores DB files under `./data/virtuoso/db`
-  - Reuses `./data/sources/source-manifest.json` directly
-  - Writes `./data/virtuoso/load.sql`
+  - Generates `/path/to/data/virtuoso/virtuoso.ini` on first startup
+  - Stores DB files under `/path/to/data/virtuoso/db`
+  - Reuses `/path/to/data/sources/source-manifest.json` directly
+  - Writes `/path/to/data/virtuoso/load.sql`
   - Reloads when `/data/config.yaml` or resolved source files change
 - `sparqlist`
-  - Generates repository files under `./data/sparqlist` from `./data/rdf-config`
+  - Generates repository files under `/path/to/data/sparqlist` from `/path/to/data/rdf-config`
   - Falls back to `/togo/defaults/sparqlist` when generation produces no files
 - `grasp`
-  - Keeps existing `.graphql` files under `./data/grasp` if present
-  - Otherwise generates resources under `./data/grasp` from `./data/rdf-config`
-  - Uses `/togo/defaults/grasp` only when `./data/grasp` has no `.graphql` files and `./data/rdf-config` has no model directories
+  - Keeps existing `.graphql` files under `/path/to/data/grasp` if present
+  - Otherwise generates resources under `/path/to/data/grasp` from `/path/to/data/rdf-config`
+  - Uses `/togo/defaults/grasp` only when `/path/to/data/grasp` has no `.graphql` files and `/path/to/data/rdf-config` has no model directories
 - `tabulae`
-  - Generates query files under `./data/tabulae/queries/layer1` when queries are absent
-  - Builds output under `./data/tabulae/dist`
+  - Generates query files under `/path/to/data/tabulae/queries/layer1` when queries are absent
+  - Builds output under `/path/to/data/tabulae/dist`
   - Generated query files include pagination metadata comments such as `# Paginate: 10000`
 - `togomcp`
-  - Rebuilds runtime MIE files from bundled defaults plus `./data/togomcp/mie`
-  - Rebuilds runtime endpoints from bundled defaults plus `./data/togomcp/endpoints.csv`
+  - Rebuilds runtime MIE files from bundled defaults plus `/path/to/data/togomcp/mie`
+  - Rebuilds runtime endpoints from bundled defaults plus `/path/to/data/togomcp/endpoints.csv`
   - Removing a user-provided MIE file or endpoint row is reflected on the next container restart
 
-To force regeneration for generated content, remove the corresponding directory under `./data` and restart the container.
-For Grasp generated from RDF-config, remove `./data/grasp/*.graphql` first. If `.graphql` files remain there, they are treated as user-managed resources and are kept as-is.
+To force regeneration for generated content, remove the corresponding directory under `/path/to/data` and restart the container.
+For Grasp generated from RDF-config, remove `/path/to/data/grasp/*.graphql` first. If `.graphql` files remain there, they are treated as user-managed resources and are kept as-is.
 
 ## Use Docker or Podman
 
