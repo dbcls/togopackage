@@ -42,7 +42,7 @@ Prerequisite: Docker or Podman.
 
 The container should run as the calling user because the runtime writes generated files, caches, and database state back into the bind-mounted data directory.
 
-Minimal example:
+Minimal example with Docker:
 
 ```bash
 docker pull ghcr.io/dbcls/togopackage:latest
@@ -53,13 +53,34 @@ docker run -d --name togopackage \
   ghcr.io/dbcls/togopackage:latest
 ```
 
+Minimal example with Podman:
+
+```bash
+podman pull ghcr.io/dbcls/togopackage:latest
+podman run -d --name togopackage \
+  --userns keep-id -u "$(id -u):$(id -g)" \
+  -p 7000:7000 -p 7001:7001 -p 8890:8890 \
+  -v "$(pwd)/data.example:/data" \
+  ghcr.io/dbcls/togopackage:latest
+```
+
 This uses the tracked files under `./data.example/` as a demo input, including a small RDF-config example under `./data.example/rdf-config/`.
 
-To use a different bind-mounted directory:
+To use a different bind-mounted directory with Docker:
 
 ```bash
 docker run -d --name togopackage \
   -u "$(id -u):$(id -g)" \
+  -p 7000:7000 -p 7001:7001 -p 8890:8890 \
+  -v "/path/to/data:/data" \
+  ghcr.io/dbcls/togopackage:latest
+```
+
+To use a different bind-mounted directory with Podman:
+
+```bash
+podman run -d --name togopackage \
+  --userns keep-id -u "$(id -u):$(id -g)" \
   -p 7000:7000 -p 7001:7001 -p 8890:8890 \
   -v "/path/to/data:/data" \
   ghcr.io/dbcls/togopackage:latest
