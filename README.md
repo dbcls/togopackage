@@ -1,8 +1,8 @@
 # TogoPackage
 
 TogoPackage is a container image that bundles RDF and bioinformatics services into one runtime.
-You prepare a bind-mounted data directory, start the container, and access the services through `http://localhost:7000`.
-The default directory is `./data`, and you can override it with `DATA_DIR=/path/to/data`.
+The primary way to use it is to pull `ghcr.io/dbcls/togopackage:latest`, bind-mount a data directory, and access the services through `http://localhost:7000`.
+Building a local image from this repository is intended for development work on TogoPackage itself.
 
 Available services:
 
@@ -23,7 +23,8 @@ Available services:
 - [Data Directories](#data-directories)
 - [Update Input Data](#update-input-data)
 - [Generated Artifacts](#generated-artifacts)
-- [Use Podman](#use-podman)
+- [Use Docker or Podman](#use-docker-or-podman)
+- [Developer Workflow](#developer-workflow)
 - [Stop and Restart](#stop-and-restart)
 - [Common Pitfalls](#common-pitfalls)
 - [Repository Layout](#repository-layout)
@@ -33,17 +34,23 @@ Available services:
 
 Prerequisite: Docker or Podman.
 
-1. Prepare `config.yaml` and source files in your bind-mounted data directory, or use `./data.example` for the bundled demo.
-2. Start the container with `make start`.
-3. Open `http://localhost:7000/`.
-4. If startup is still in progress, inspect logs with your container runtime, for example `podman logs -f togopackage` or `docker logs -f togopackage`.
+1. Pull `ghcr.io/dbcls/togopackage:latest`.
+2. Prepare `config.yaml` and source files in your bind-mounted data directory, or use `./data.example` for the bundled demo.
+3. Start the container.
+4. Open `http://localhost:7000/`.
+5. If startup is still in progress, inspect logs with your container runtime.
 
-`make start` runs the container as the calling user because the runtime writes generated files, caches, and database state back into the bind-mounted `./data` directory.
+The container should run as the calling user because the runtime writes generated files, caches, and database state back into the bind-mounted data directory.
 
 Minimal example:
 
 ```bash
-make start DATA_DIR=./data.example
+docker pull ghcr.io/dbcls/togopackage:latest
+docker run -d --name togopackage \
+  -u "$(id -u):$(id -g)" \
+  -p 7000:7000 -p 7001:7001 -p 8890:8890 \
+  -v "$(pwd)/data.example:/data" \
+  ghcr.io/dbcls/togopackage:latest
 ```
 
 This uses the tracked files under `./data.example/` as a demo input, including a small RDF-config example under `./data.example/rdf-config/`.
@@ -51,7 +58,11 @@ This uses the tracked files under `./data.example/` as a demo input, including a
 To use a different bind-mounted directory:
 
 ```bash
-make start DATA_DIR=./data.example
+docker run -d --name togopackage \
+  -u "$(id -u):$(id -g)" \
+  -p 7000:7000 -p 7001:7001 -p 8890:8890 \
+  -v "/path/to/data:/data" \
+  ghcr.io/dbcls/togopackage:latest
 ```
 
 The bundled demo configuration is:
@@ -64,7 +75,7 @@ source:
     graph: http://example.org/graph/demo
 ```
 
-The default `make start` command publishes:
+The container publishes:
 
 - `7000`: public entrypoint through Caddy
 - `7001`: direct QLever port
@@ -76,8 +87,8 @@ The default `make start` command publishes:
 Each `source` entry must specify exactly one of `url` or `path`.
 You can also choose which backend `sparql-proxy` forwards to with `sparql_backend`.
 
-By default, the host-side bind-mounted directory is `./data`.
-To use another directory, pass `DATA_DIR` to `make` commands.
+In the examples above, the host-side bind-mounted directory is `./data.example` or `/path/to/data`.
+TogoPackage reads `config.yaml` from that mounted directory.
 
 The repository includes demo input files under `./data.example/`, including a small RDF-config example under `./data.example/rdf-config/`.
 You can either use `./data.example` directly or use it as a reference when preparing your own bind-mounted directory.
@@ -129,7 +140,7 @@ Rules:
 
 ## Open the Services
 
-Open these URLs after `make start`:
+Open these URLs after the container starts:
 
 - `/` -> supervisor dashboard
 - `/logs` -> supervisor log viewer
@@ -148,40 +159,36 @@ Direct container ports:
 
 ## Data Directories
 
-Main mounted runtime directory on the host: `./data` by default
+Main mounted runtime directory on the host: `/path/to/data` in generic examples, or `./data.example` in the bundled demo
 
-- `./data/config.yaml`: main source definition
-- `./data/qlever`: QLever index data
-- `./data/virtuoso`: Virtuoso configuration, DB files, and load metadata
-- `./data/sources`: downloaded or prepared source files
-- `./data/sparqlist`: generated SPARQList repository
-- `./data/grasp`: generated Grasp resources
-- `./data/tabulae/queries`: Tabulae query files
-- `./data/tabulae/dist`: generated Tabulae output
-- `./data/togomcp/mie`: user-provided MIE files
-- `./data/togomcp/endpoints.csv`: user-provided extra endpoints
-- `./data/rdf-config`: RDF-config models used by generators
+- `/path/to/data/config.yaml`: main source definition
+- `/path/to/data/qlever`: QLever index data
+- `/path/to/data/virtuoso`: Virtuoso configuration, DB files, and load metadata
+- `/path/to/data/sources`: downloaded or prepared source files
+- `/path/to/data/sparqlist`: generated SPARQList repository
+- `/path/to/data/grasp`: generated Grasp resources
+- `/path/to/data/tabulae/queries`: Tabulae query files
+- `/path/to/data/tabulae/dist`: generated Tabulae output
+- `/path/to/data/togomcp/mie`: user-provided MIE files
+- `/path/to/data/togomcp/endpoints.csv`: user-provided extra endpoints
+- `/path/to/data/rdf-config`: RDF-config models used by generators
 
-If you start with `DATA_DIR=...`, replace `./data` in the list above with that directory.
-
-If `./data/rdf-config` contains model directories with `model.yaml`, TogoPackage generates derived assets for supported services at startup.
-If `./data/grasp` already contains `.graphql` files, TogoPackage keeps them and skips Grasp generation from RDF-config.
+If `/path/to/data/rdf-config` contains model directories with `model.yaml`, TogoPackage generates derived assets for supported services at startup.
+If `/path/to/data/grasp` already contains `.graphql` files, TogoPackage keeps them and skips Grasp generation from RDF-config.
 
 ## Update Input Data
 
 Normal workflow:
 
-1. Update `./data/config.yaml` or files under `./data`.
-2. Run `make restart`.
-3. Check `docker logs -f togopackage` if indexing or generation takes time.
-
-When using a non-default bind-mounted directory, pass the same `DATA_DIR` value to `make restart`.
+1. Update `config.yaml` or files under the bind-mounted data directory.
+2. Restart the container.
+3. Check container logs if indexing or generation takes time.
 
 Important behavior:
 
-- Remote `url` sources are cached under `./data/sources`
+- Remote `url` sources are cached under the mounted data directory, typically `/path/to/data/sources`
 - Restarting the container does not automatically re-download an already cached URL
-- To refresh upstream content at the same URL, remove the cached file first and then run `make restart`
+- To refresh upstream content at the same URL, remove the cached file first and then restart the container
 
 ## Generated Artifacts
 
@@ -214,17 +221,46 @@ This section summarizes what TogoPackage prepares at startup.
 - `togomcp`
   - Rebuilds runtime MIE files from bundled defaults plus `./data/togomcp/mie`
   - Rebuilds runtime endpoints from bundled defaults plus `./data/togomcp/endpoints.csv`
-  - Removing a user-provided MIE file or endpoint row is reflected on the next `make restart`
+  - Removing a user-provided MIE file or endpoint row is reflected on the next container restart
 
-To force regeneration for generated content, remove the corresponding directory under `./data` and run `make restart`.
+To force regeneration for generated content, remove the corresponding directory under `./data` and restart the container.
 For Grasp generated from RDF-config, remove `./data/grasp/*.graphql` first. If `.graphql` files remain there, they are treated as user-managed resources and are kept as-is.
 
-## Use Podman
+## Use Docker or Podman
+
+Docker example:
+
+```bash
+docker pull ghcr.io/dbcls/togopackage:latest
+docker run -d --name togopackage \
+  -u "$(id -u):$(id -g)" \
+  -p 7000:7000 -p 7001:7001 -p 8890:8890 \
+  -v "$(pwd)/data:/data" \
+  ghcr.io/dbcls/togopackage:latest
+```
+
+Podman example:
+
+```bash
+podman pull ghcr.io/dbcls/togopackage:latest
+podman run -d --name togopackage \
+  --userns keep-id -u "$(id -u):$(id -g)" \
+  -p 7000:7000 -p 7001:7001 -p 8890:8890 \
+  -v "$(pwd)/data:/data" \
+  ghcr.io/dbcls/togopackage:latest
+```
+
+Both runtimes should start the container as the calling user so the bind-mounted data directory stays writable.
+With rootless Podman, `--userns keep-id` preserves that mapping on the bind mount.
+
+## Developer Workflow
+
+Pulling `ghcr.io/dbcls/togopackage:latest` is the primary user workflow.
+Building a local image from this repository is for development when you are changing TogoPackage itself.
 
 The Makefile uses `podman` by default when available, otherwise `docker`.
 You can still override the runtime through `CONTAINER_RUNTIME`.
-Both runtimes start the container as the calling user so bind-mounted `./data` stays writable.
-With `podman`, `--userns keep-id` is added as well so rootless Podman preserves that mapping on the bind mount.
+The local image tag defaults to `dbcls/togopackage`.
 
 ```bash
 make build CONTAINER_RUNTIME=podman
@@ -232,33 +268,52 @@ make start CONTAINER_RUNTIME=podman
 make stop CONTAINER_RUNTIME=podman
 ```
 
-## Stop and Restart
+You can override the local image tag if needed:
 
 ```bash
-make stop
-make restart
+make build IMAGE=ghcr.io/YOUR_ORG/togopackage CONTAINER_RUNTIME=docker
+```
+
+## Stop and Restart
+
+Docker:
+
+```bash
+docker stop togopackage
+docker rm togopackage
+docker run -d --name togopackage \
+  -u "$(id -u):$(id -g)" \
+  -p 7000:7000 -p 7001:7001 -p 8890:8890 \
+  -v "$(pwd)/data:/data" \
+  ghcr.io/dbcls/togopackage:latest
 ```
 
 With Podman:
 
 ```bash
-make stop CONTAINER_RUNTIME=podman
-make restart CONTAINER_RUNTIME=podman
+podman stop togopackage
+podman rm togopackage
+podman run -d --name togopackage \
+  --userns keep-id -u "$(id -u):$(id -g)" \
+  -p 7000:7000 -p 7001:7001 -p 8890:8890 \
+  -v "$(pwd)/data:/data" \
+  ghcr.io/dbcls/togopackage:latest
 ```
 
 ## Common Pitfalls
 
-- `./data/config.yaml` is required
+- `/data/config.yaml` is required inside the container, so the host bind mount must provide `config.yaml` at its root
 - `source` must not be empty
-- Cached files under `./data/sources` are reused unless you remove them
-- `sparqlist`, `grasp`, and `tabulae` generate richer output when `./data/rdf-config` is provided
-- `tabulae` requires query files under `./data/tabulae/queries` or enough RDF-config input to generate them
-- When using `DATA_DIR=...`, keep using the same value for `start`, `stop`, and `restart`
+- Cached files under the mounted data directory are reused unless you remove them
+- `sparqlist`, `grasp`, and `tabulae` generate richer output when `/data/rdf-config` is provided
+- `tabulae` requires query files under `/data/tabulae/queries` or enough RDF-config input to generate them
+- Keep using the same host directory for `/data` across restarts
+- `make build` and `make start` are developer-oriented local image workflows, not the primary user workflow
 
 ## Repository Layout
 
-Most users only need `./data`, `Makefile`, and the running services.
-If you inspect the repository itself, these directories are the main entry points:
+Most users only need a bind-mounted data directory and the published container image.
+If you work on this repository itself, these directories are the main entry points:
 
 - `packaging/`: container build files, bundled defaults, and runtime setup scripts
 - `supervisor/`: Rust-based process supervisor and dashboard server
