@@ -2,7 +2,7 @@
 
 ## Endpoint
 
-http://localhost:7000/sparql
+http://localhost:10005/sparql
 
 ## `triple_count` Count all triples
 

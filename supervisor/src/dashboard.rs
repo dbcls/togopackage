@@ -1035,7 +1035,7 @@ fn request_base_url(headers: &HeaderMap) -> String {
         .get("host")
         .and_then(|value| value.to_str().ok())
         .filter(|value| !value.is_empty())
-        .unwrap_or("localhost:7000");
+        .unwrap_or("localhost:10005");
     format!("{scheme}://{host}")
 }
 

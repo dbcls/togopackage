@@ -1,7 +1,7 @@
 # TogoPackage
 
 TogoPackage is a container image that bundles RDF and bioinformatics services into one runtime.
-The primary way to use it is to pull `ghcr.io/dbcls/togopackage:latest`, bind-mount a data directory, and access the services through `http://localhost:7000`.
+The primary way to use it is to pull `ghcr.io/dbcls/togopackage:latest`, bind-mount a data directory, and access the services through `http://localhost:10005`.
 Building a local image from this repository is intended for development work on TogoPackage itself.
 
 Available services:
@@ -37,7 +37,7 @@ Prerequisite: Docker or Podman.
 1. Pull `ghcr.io/dbcls/togopackage:latest`.
 2. Prepare `config.yaml` and source files in your bind-mounted data directory, or use `./data.example` for the bundled demo.
 3. Start the container.
-4. Open `http://localhost:7000/`.
+4. Open `http://localhost:10005/`.
 5. If startup is still in progress, inspect logs with your container runtime.
 
 The container should run as the calling user because the runtime writes generated files, caches, and database state back into the bind-mounted data directory.
@@ -48,7 +48,7 @@ Minimal example with Docker:
 docker pull ghcr.io/dbcls/togopackage:latest
 docker run -d --name togopackage \
   -u "$(id -u):$(id -g)" \
-  -p 7000:7000 -p 7001:7001 -p 8890:8890 \
+  -p 10005:10005 -p 7001:7001 -p 8890:8890 \
   -v "$(pwd)/data.example:/data" \
   ghcr.io/dbcls/togopackage:latest
 ```
@@ -59,7 +59,7 @@ Minimal example with Podman:
 podman pull ghcr.io/dbcls/togopackage:latest
 podman run -d --name togopackage \
   --userns keep-id -u "$(id -u):$(id -g)" \
-  -p 7000:7000 -p 7001:7001 -p 8890:8890 \
+  -p 10005:10005 -p 7001:7001 -p 8890:8890 \
   -v "$(pwd)/data.example:/data" \
   ghcr.io/dbcls/togopackage:latest
 ```
@@ -71,7 +71,7 @@ To use a different bind-mounted directory with Docker:
 ```bash
 docker run -d --name togopackage \
   -u "$(id -u):$(id -g)" \
-  -p 7000:7000 -p 7001:7001 -p 8890:8890 \
+  -p 10005:10005 -p 7001:7001 -p 8890:8890 \
   -v "/path/to/data:/data" \
   ghcr.io/dbcls/togopackage:latest
 ```
@@ -81,7 +81,7 @@ To use a different bind-mounted directory with Podman:
 ```bash
 podman run -d --name togopackage \
   --userns keep-id -u "$(id -u):$(id -g)" \
-  -p 7000:7000 -p 7001:7001 -p 8890:8890 \
+  -p 10005:10005 -p 7001:7001 -p 8890:8890 \
   -v "/path/to/data:/data" \
   ghcr.io/dbcls/togopackage:latest
 ```
@@ -98,7 +98,7 @@ source:
 
 The container publishes:
 
-- `7000`: public entrypoint through Caddy
+- `10005`: public entrypoint through Caddy
 - `7001`: direct QLever port
 - `8890`: direct Virtuoso HTTP port
 
@@ -255,7 +255,7 @@ Docker example:
 docker pull ghcr.io/dbcls/togopackage:latest
 docker run -d --name togopackage \
   -u "$(id -u):$(id -g)" \
-  -p 7000:7000 -p 7001:7001 -p 8890:8890 \
+  -p 10005:10005 -p 7001:7001 -p 8890:8890 \
   -v "$(pwd)/data:/data" \
   ghcr.io/dbcls/togopackage:latest
 ```
@@ -266,7 +266,7 @@ Podman example:
 podman pull ghcr.io/dbcls/togopackage:latest
 podman run -d --name togopackage \
   --userns keep-id -u "$(id -u):$(id -g)" \
-  -p 7000:7000 -p 7001:7001 -p 8890:8890 \
+  -p 10005:10005 -p 7001:7001 -p 8890:8890 \
   -v "$(pwd)/data:/data" \
   ghcr.io/dbcls/togopackage:latest
 ```
@@ -304,7 +304,7 @@ docker stop togopackage
 docker rm togopackage
 docker run -d --name togopackage \
   -u "$(id -u):$(id -g)" \
-  -p 7000:7000 -p 7001:7001 -p 8890:8890 \
+  -p 10005:10005 -p 7001:7001 -p 8890:8890 \
   -v "$(pwd)/data:/data" \
   ghcr.io/dbcls/togopackage:latest
 ```
@@ -316,7 +316,7 @@ podman stop togopackage
 podman rm togopackage
 podman run -d --name togopackage \
   --userns keep-id -u "$(id -u):$(id -g)" \
-  -p 7000:7000 -p 7001:7001 -p 8890:8890 \
+  -p 10005:10005 -p 7001:7001 -p 8890:8890 \
   -v "$(pwd)/data:/data" \
   ghcr.io/dbcls/togopackage:latest
 ```

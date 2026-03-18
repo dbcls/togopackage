@@ -124,5 +124,5 @@ COPY packaging/Caddyfile /etc/caddy/Caddyfile
 # Switch back to togo for runtime.
 USER togo
 
-EXPOSE 7000 7001 7004 8890
+EXPOSE 10005 7001 7004 8890
 ENTRYPOINT ["/usr/local/bin/togopackage-supervisor", "run"]

@@ -24,7 +24,7 @@ build:
 
 start: build
 	mkdir -p "$(DATA_DIR_ABS)/tabulae" "$(DATA_DIR_ABS)/virtuoso"
-	$(CONTAINER_RUNTIME) run -d --name $(CONTAINER) $(CONTAINER_RUN_USER_OPTIONS) -p 7000:7000 -p 7001:7001 -p 8890:8890 -v "$(DATA_DIR_ABS):/data" $(IMAGE)
+	$(CONTAINER_RUNTIME) run -d --name $(CONTAINER) $(CONTAINER_RUN_USER_OPTIONS) -p 10005:10005 -p 7001:7001 -p 8890:8890 -v "$(DATA_DIR_ABS):/data" $(IMAGE)
 
 stop:
 	$(CONTAINER_RUNTIME) stop $(CONTAINER) || true
