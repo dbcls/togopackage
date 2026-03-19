@@ -227,6 +227,7 @@ This section summarizes what TogoPackage prepares at startup.
   - Stores DB files under `/path/to/data/virtuoso/db`
   - Reuses `/path/to/data/sources/source-manifest.json` directly
   - Writes `/path/to/data/virtuoso/load.sql`
+  - Inserts `checkpoint;` after each source file load in `load.sql`
   - Reloads when `/data/config.yaml` or resolved source files change
 - `sparqlist`
   - Generates repository files under `/path/to/data/sparqlist` from `/path/to/data/rdf-config`

@@ -26,7 +26,7 @@ def main() -> int:
         path = sql_string(source["path"])
         graph = sql_string(source["graph"])
         lines.append(f"DB.DBA.TTLP_MT(file_to_string_output({path}), '', {graph}, 0, 0, 0, 0);")
-    lines.append("checkpoint;")
+        lines.append("checkpoint;")
     load_sql_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return 0
 
