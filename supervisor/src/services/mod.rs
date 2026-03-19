@@ -15,6 +15,7 @@ pub enum ConfigPath {
     Sparqlist,
     Grasp,
     Togomcp,
+    VirtuosoData,
 }
 
 #[derive(Clone, Copy, Debug)]

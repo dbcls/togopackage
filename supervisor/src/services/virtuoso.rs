@@ -1,12 +1,12 @@
 use crate::config::Config;
 
-use super::{base_env, ServiceCommand, ServiceDashboard, ServiceSpec};
+use super::{base_env, ConfigPath, ServiceCommand, ServiceDashboard, ServiceSpec};
 
 pub const SPEC: ServiceSpec = ServiceSpec {
     name: "virtuoso",
     setup_command: Some("python3 /togo/runtime/support/setup_virtuoso.py"),
     command: ServiceCommand::Run("exec /togo/runtime/run/virtuoso.sh"),
-    cwd: None,
+    cwd: Some(ConfigPath::VirtuosoData),
     env,
     dashboard: ServiceDashboard {
         title: "Virtuoso",

@@ -188,6 +188,7 @@ impl Config {
             ConfigPath::Sparqlist => &self.sparqlist_dir,
             ConfigPath::Grasp => &self.grasp_dir,
             ConfigPath::Togomcp => &self.togomcp_dir,
+            ConfigPath::VirtuosoData => &self.virtuoso_data_dir,
         }
     }
 }
