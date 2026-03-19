@@ -72,7 +72,7 @@ load_sources_if_needed() {
 
   python3 /togo/runtime/support/generate_virtuoso_load_sql.py
   log_virtuoso "Virtuoso data import started."
-  if load_output="$(isql-vt "127.0.0.1:${VIRTUOSO_ISQL_PORT}" dba "${VIRTUOSO_DBA_PASSWORD}" VERBOSE=OFF PROMPT=OFF <"${VIRTUOSO_LOAD_SQL_PATH}" 2>&1)"; then
+  if load_output="$(python3 /togo/runtime/support/with_database_build_lock.py Virtuoso bash -lc "isql-vt \"127.0.0.1:${VIRTUOSO_ISQL_PORT}\" dba \"${VIRTUOSO_DBA_PASSWORD}\" VERBOSE=OFF PROMPT=OFF <\"${VIRTUOSO_LOAD_SQL_PATH}\"" 2>&1)"; then
     printf '%s\n' "${load_output}" >&2
     if printf '%s\n' "${load_output}" | grep -q '^\*\*\* Error'; then
       log_virtuoso "Virtuoso data import failed."

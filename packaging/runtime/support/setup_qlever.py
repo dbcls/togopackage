@@ -6,6 +6,7 @@ from pathlib import Path
 from qlever_build_index import build_index
 from runtime_state import (
     ensure_current_generated_state,
+    hold_database_build_lock,
     log_up_to_date,
     write_manifest,
     write_stamp,
@@ -56,9 +57,14 @@ def main() -> int:
         log_up_to_date("QLever", log)
         return 0
 
-    log("QLever indexing started.")
     try:
-        build_index(manifest, index_base)
+        with hold_database_build_lock("QLever", log):
+            if index_path.exists():
+                log_up_to_date("QLever", log)
+                return 0
+
+            log("QLever indexing started.")
+            build_index(manifest, index_base)
     except Exception as error:
         print(str(error), file=sys.stderr)
         log("QLever indexing failed.")
