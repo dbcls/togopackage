@@ -1,4 +1,7 @@
 sparql_backend: qlever
+qlever:
+  server:
+    MEMORY_FOR_QUERIES: 32G
 
 source:
   - name: Demo dataset

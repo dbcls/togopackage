@@ -15,11 +15,17 @@ fn main() {
         eprintln!("failed to initialize aggregated log file: {error}");
     }
 
-    let config = Config::new();
     let command = std::env::args().nth(1);
+    let config = match Config::new() {
+        Ok(config) => config,
+        Err(error) => {
+            log_supervisor_message(&error);
+            std::process::exit(1);
+        }
+    };
 
     match command.as_deref() {
-        Some("print-plan") => print_plan(),
+        Some("print-plan") => print_plan(&config),
         Some("run") | None => {
             if let Err(error) = run_supervisor(&config) {
                 log_supervisor_message(&error);

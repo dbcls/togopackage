@@ -63,7 +63,7 @@ fn spawn_service(
     restart_count: u32,
     dashboard_state: &SharedDashboardState,
 ) -> io::Result<ManagedService> {
-    let shell_command = spec.shell_command();
+    let shell_command = spec.shell_command(config);
     let mut command = Command::new("/usr/bin/env");
     command.arg("bash").arg("-c").arg(&shell_command);
     if let Some(cwd) = spec.cwd {
@@ -519,7 +519,7 @@ pub fn run_supervisor(config: &Config) -> Result<(), String> {
                                 runtime.as_millis()
                             ));
                         }
-                        ServiceCommand::Run(_) => {
+                        ServiceCommand::Run(_) | ServiceCommand::RunWithConfig(_) => {
                             log_supervisor_event(&format!(
                                 "service={} event=exit {} runtime_ms={} restart_in_ms={}",
                                 service.spec.name,

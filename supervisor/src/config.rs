@@ -1,5 +1,6 @@
 use crate::services::ConfigPath;
 use serde::Deserialize;
+use serde_yaml::Value;
 use std::fs;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -9,9 +10,40 @@ pub enum SparqlBackend {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct RuntimeConfigFile {
     #[serde(default)]
     sparql_backend: Option<String>,
+    #[serde(default)]
+    qlever: QleverConfigFile,
+    #[serde(default, rename = "source")]
+    _source: Option<Value>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct QleverConfigFile {
+    #[serde(default)]
+    server: QleverServerConfigFile,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct QleverServerConfigFile {
+    #[serde(default, rename = "ACCESS_TOKEN")]
+    access_token: Option<String>,
+    #[serde(default, rename = "MEMORY_FOR_QUERIES")]
+    memory_for_queries: Option<String>,
+    #[serde(default, rename = "TIMEOUT")]
+    timeout: Option<String>,
+    #[serde(default, rename = "CACHE_MAX_SIZE")]
+    cache_max_size: Option<String>,
+    #[serde(default, rename = "CACHE_MAX_SIZE_SINGLE_ENTRY")]
+    cache_max_size_single_entry: Option<String>,
+    #[serde(default, rename = "CACHE_MAX_NUM_ENTRIES")]
+    cache_max_num_entries: Option<String>,
+    #[serde(default, rename = "PERSIST_UPDATES")]
+    persist_updates: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -19,11 +51,17 @@ pub struct Config {
     pub togopackage_config: String,
     pub togopackage_defaults_dir: String,
     pub rdf_config_base_dir: String,
-    pub qlever_memory_max_size: String,
+    pub qlever_access_token: Option<String>,
+    pub qlever_memory_for_queries: Option<String>,
     pub qlever_index_base: String,
     pub qlever_data_dir: String,
     pub source_manifest_path: String,
     pub qlever_port: String,
+    pub qlever_timeout: Option<String>,
+    pub qlever_cache_max_size: Option<String>,
+    pub qlever_cache_max_size_single_entry: Option<String>,
+    pub qlever_cache_max_num_entries: Option<String>,
+    pub qlever_persist_updates: bool,
     pub sparql_proxy_port: String,
     pub supervisor_http_port: String,
     pub sparql_proxy_max_limit: String,
@@ -54,23 +92,41 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, String> {
+        Self::from_config_path("/data/config.yaml")
+    }
+
+    fn from_config_path(config_path: &str) -> Result<Self, String> {
+        let runtime_config = Self::load_runtime_config(config_path)?;
         let qlever_port = String::from("7001");
         let sparql_proxy_port = String::from("7002");
         let supervisor_http_port = String::from("7005");
         let togomcp_data_dir = String::from("/data/togomcp");
         let virtuoso_data_dir = String::from("/data/virtuoso");
 
-        Self {
-            togopackage_config: String::from("/data/config.yaml"),
+        Ok(Self {
+            togopackage_config: String::from(config_path),
             togopackage_defaults_dir: String::from("/togo/defaults"),
             rdf_config_base_dir: String::from("/data/rdf-config"),
 
-            qlever_memory_max_size: String::from("32GB"),
+            qlever_access_token: runtime_config.qlever.server.access_token,
+            qlever_memory_for_queries: runtime_config.qlever.server.memory_for_queries,
             qlever_index_base: String::from("/data/qlever/index/default"),
             qlever_data_dir: String::from("/data/sources"),
             source_manifest_path: String::from("/data/sources/source-manifest.json"),
             qlever_port: qlever_port.clone(),
+            qlever_timeout: runtime_config.qlever.server.timeout,
+            qlever_cache_max_size: runtime_config.qlever.server.cache_max_size,
+            qlever_cache_max_size_single_entry: runtime_config
+                .qlever
+                .server
+                .cache_max_size_single_entry,
+            qlever_cache_max_num_entries: runtime_config.qlever.server.cache_max_num_entries,
+            qlever_persist_updates: runtime_config
+                .qlever
+                .server
+                .persist_updates
+                .unwrap_or(false),
 
             sparql_proxy_port: sparql_proxy_port.clone(),
             supervisor_http_port,
@@ -103,22 +159,18 @@ impl Config {
 
             tabulae_queries_dir: String::from("/data/tabulae/queries"),
             tabulae_dist_dir: String::from("/data/tabulae/dist"),
-            sparql_backend: Self::load_sparql_backend("/data/config.yaml"),
-        }
+            sparql_backend: match runtime_config.sparql_backend.as_deref().map(str::trim) {
+                Some("virtuoso") => SparqlBackend::Virtuoso,
+                _ => SparqlBackend::QLever,
+            },
+        })
     }
 
-    fn load_sparql_backend(config_path: &str) -> SparqlBackend {
-        let Ok(contents) = fs::read_to_string(config_path) else {
-            return SparqlBackend::QLever;
-        };
-        let Ok(config) = serde_yaml::from_str::<RuntimeConfigFile>(&contents) else {
-            return SparqlBackend::QLever;
-        };
-
-        match config.sparql_backend.as_deref().map(str::trim) {
-            Some("virtuoso") => SparqlBackend::Virtuoso,
-            _ => SparqlBackend::QLever,
-        }
+    fn load_runtime_config(config_path: &str) -> Result<RuntimeConfigFile, String> {
+        let contents = fs::read_to_string(config_path)
+            .map_err(|error| format!("failed to read config file {config_path}: {error}"))?;
+        serde_yaml::from_str::<RuntimeConfigFile>(&contents)
+            .map_err(|error| format!("failed to parse config file {config_path}: {error}"))
     }
 
     pub fn sparql_backend_url(&self) -> String {
@@ -157,17 +209,20 @@ mod tests {
     #[test]
     fn defaults_to_qlever_when_config_is_missing() {
         assert_eq!(
-            Config::load_sparql_backend("/tmp/this-file-does-not-exist.yaml"),
-            SparqlBackend::QLever
+            Config::from_config_path("/tmp/this-file-does-not-exist.yaml")
+                .expect_err("missing config should fail"),
+            "failed to read config file /tmp/this-file-does-not-exist.yaml: No such file or directory (os error 2)"
         );
     }
 
     #[test]
     fn reads_virtuoso_backend_from_config_yaml() {
         let path = temp_config_path("togopackage-config");
-        fs::write(&path, "sparql_backend: virtuoso\n").expect("write config");
+        fs::write(&path, "sparql_backend: virtuoso\nsource: []\n").expect("write config");
 
-        let backend = Config::load_sparql_backend(&path);
+        let backend = Config::from_config_path(&path)
+            .expect("config should parse")
+            .sparql_backend;
 
         fs::remove_file(&path).expect("remove config");
         assert_eq!(backend, SparqlBackend::Virtuoso);
@@ -176,11 +231,93 @@ mod tests {
     #[test]
     fn invalid_value_falls_back_to_qlever() {
         let path = temp_config_path("togopackage-config");
-        fs::write(&path, "sparql_backend: unknown\n").expect("write config");
+        fs::write(&path, "sparql_backend: unknown\nsource: []\n").expect("write config");
 
-        let backend = Config::load_sparql_backend(&path);
+        let backend = Config::from_config_path(&path)
+            .expect("config should parse")
+            .sparql_backend;
 
         fs::remove_file(&path).expect("remove config");
         assert_eq!(backend, SparqlBackend::QLever);
+    }
+
+    #[test]
+    fn rejects_unknown_top_level_keys() {
+        let path = temp_config_path("togopackage-config");
+        fs::write(&path, "source: []\nPORT: \"7101\"\n").expect("write config");
+
+        let error = Config::from_config_path(&path).expect_err("unknown key should fail");
+
+        fs::remove_file(&path).expect("remove config");
+        assert!(error.contains("unknown field `PORT`"));
+    }
+
+    #[test]
+    fn rejects_unknown_qlever_keys() {
+        let path = temp_config_path("togopackage-config");
+        fs::write(
+            &path,
+            "source: []\nqlever:\n  server:\n    PORT: \"7101\"\n",
+        )
+        .expect("write config");
+
+        let error = Config::from_config_path(&path).expect_err("unknown key should fail");
+
+        fs::remove_file(&path).expect("remove config");
+        assert!(error.contains("unknown field `PORT`"));
+    }
+
+    #[test]
+    fn reads_qlever_server_settings_from_config_yaml() {
+        let path = temp_config_path("togopackage-config");
+        fs::write(
+            &path,
+            concat!(
+                "source: []\n",
+                "qlever:\n",
+                "  server:\n",
+                "    ACCESS_TOKEN: secret-token\n",
+                "    MEMORY_FOR_QUERIES: 12G\n",
+                "    TIMEOUT: 2m\n",
+                "    CACHE_MAX_SIZE: 3G\n",
+                "    CACHE_MAX_SIZE_SINGLE_ENTRY: 512M\n",
+                "    CACHE_MAX_NUM_ENTRIES: \"42\"\n",
+                "    PERSIST_UPDATES: true\n",
+            ),
+        )
+        .expect("write config");
+
+        let config = Config::from_config_path(&path).expect("config should parse");
+
+        fs::remove_file(&path).expect("remove config");
+        assert_eq!(config.qlever_port, "7001");
+        assert_eq!(config.qlever_access_token.as_deref(), Some("secret-token"));
+        assert_eq!(config.qlever_memory_for_queries.as_deref(), Some("12G"));
+        assert_eq!(config.qlever_timeout.as_deref(), Some("2m"));
+        assert_eq!(config.qlever_cache_max_size.as_deref(), Some("3G"));
+        assert_eq!(
+            config.qlever_cache_max_size_single_entry.as_deref(),
+            Some("512M")
+        );
+        assert_eq!(config.qlever_cache_max_num_entries.as_deref(), Some("42"));
+        assert!(config.qlever_persist_updates);
+    }
+
+    #[test]
+    fn qlever_server_settings_fall_back_to_defaults() {
+        let path = temp_config_path("togopackage-config");
+        fs::write(&path, "source: []\n").expect("write config");
+
+        let config = Config::from_config_path(&path).expect("config should parse");
+
+        fs::remove_file(&path).expect("remove config");
+        assert_eq!(config.qlever_port, "7001");
+        assert_eq!(config.qlever_access_token, None);
+        assert_eq!(config.qlever_memory_for_queries, None);
+        assert_eq!(config.qlever_timeout, None);
+        assert_eq!(config.qlever_cache_max_size, None);
+        assert_eq!(config.qlever_cache_max_size_single_entry, None);
+        assert_eq!(config.qlever_cache_max_num_entries, None);
+        assert!(!config.qlever_persist_updates);
     }
 }

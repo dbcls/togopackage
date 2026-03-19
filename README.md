@@ -116,6 +116,14 @@ You can either use `./data.example` directly or use it as a reference when prepa
 
 ```yaml
 sparql_backend: qlever
+qlever:
+  server:
+    ACCESS_TOKEN: your-access-token
+    MEMORY_FOR_QUERIES: 32G
+    TIMEOUT: 30s
+    CACHE_MAX_SIZE: 2G
+    CACHE_MAX_SIZE_SINGLE_ENTRY: 1G
+    CACHE_MAX_NUM_ENTRIES: "200"
 
 source:
   - name: Example RDF source
@@ -149,6 +157,15 @@ Rules:
 - `sparql_backend` is optional. Supported values: `qlever`, `virtuoso`
 - `sparql_backend` controls which backend `sparql-proxy` uses for `/sparql`
 - Default `sparql_backend`: `qlever`
+- `qlever` is optional
+- `qlever.server` is optional
+- `qlever.server.ACCESS_TOKEN` is optional. If omitted, QLever uses its own default behavior
+- `qlever.server.MEMORY_FOR_QUERIES` is optional. If omitted, TogoPackage does not pass `-m`
+- `qlever.server.TIMEOUT` is optional. If omitted, TogoPackage does not pass `--timeout`
+- `qlever.server.CACHE_MAX_SIZE` is optional. If omitted, TogoPackage does not pass `--cache-max-size`
+- `qlever.server.CACHE_MAX_SIZE_SINGLE_ENTRY` is optional. If omitted, TogoPackage does not pass `--cache-max-size-single-entry`
+- `qlever.server.CACHE_MAX_NUM_ENTRIES` is optional. If omitted, TogoPackage does not pass `--cache-max-num-entries`
+- `qlever.server.PERSIST_UPDATES` is optional. Only `true` adds `--persist-updates`
 - `format` can be specified for each `source`
 - `source.format` is optional. Default: `ttl`
 - Supported formats: `nt`, `ttl`, `nq`
@@ -158,6 +175,7 @@ Rules:
 - Glob matches are expanded in sorted order
 - Directories matched by a glob are ignored
 - `graph` is optional. If omitted, data is loaded into the default graph
+- `config.yaml` is parsed strictly by the supervisor. Unknown keys or invalid YAML cause startup to fail
 
 ## Open the Services
 

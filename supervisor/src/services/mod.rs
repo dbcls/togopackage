@@ -45,6 +45,7 @@ pub struct ServiceSpec {
 #[derive(Clone, Copy, Debug)]
 pub enum ServiceCommand {
     Run(&'static str),
+    RunWithConfig(fn(&Config) -> String),
     SetupOnly,
 }
 
@@ -59,20 +60,24 @@ pub const SERVICES: &[ServiceSpec] = &[
     virtuoso::SPEC,
 ];
 
-pub fn print_plan() {
+pub fn print_plan(config: &Config) {
     for spec in SERVICES {
-        println!("{} -> bash -c {}", spec.name, spec.shell_command());
+        println!("{} -> bash -c {}", spec.name, spec.shell_command(config));
     }
 }
 
 impl ServiceSpec {
-    pub fn shell_command(&self) -> String {
+    pub fn shell_command(&self, config: &Config) -> String {
         match (self.setup_command, self.command) {
             (Some(setup_command), ServiceCommand::Run(command)) => {
                 format!("{setup_command} && {command}")
             }
+            (Some(setup_command), ServiceCommand::RunWithConfig(command)) => {
+                format!("{setup_command} && {}", command(config))
+            }
             (Some(setup_command), ServiceCommand::SetupOnly) => format!("exec {setup_command}"),
             (None, ServiceCommand::Run(command)) => command.to_owned(),
+            (None, ServiceCommand::RunWithConfig(command)) => command(config),
             (None, ServiceCommand::SetupOnly) => {
                 panic!("setup-only service requires a setup script")
             }
