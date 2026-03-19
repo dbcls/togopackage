@@ -41,6 +41,7 @@ LiteMode = 0
 DisableUnixSocket = 1
 NumberOfBuffers = 3000000
 MaxDirtyBuffers = 2250000
+TransactionAfterImageLimit = 5000000000
 MaxCheckpointRemap = 2000
 CheckpointInterval = 60
 O_DIRECT = 0

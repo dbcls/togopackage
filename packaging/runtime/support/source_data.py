@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import bz2
+import fcntl
 import gzip
 import glob
 import hashlib
@@ -7,19 +8,47 @@ import json
 import lzma
 import shutil
 import subprocess
+import tempfile
 import urllib.request
+from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import urlparse
 
 
-def download(url: str, dest: Path) -> None:
-    if dest.exists():
-        return
+def unique_tmp_path(dest: Path) -> Path:
     dest.parent.mkdir(parents=True, exist_ok=True)
-    tmp = dest.with_suffix(dest.suffix + ".tmp")
-    with urllib.request.urlopen(url) as response, tmp.open("wb") as out:
-        shutil.copyfileobj(response, out)
-    tmp.replace(dest)
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f"{dest.name}.",
+        suffix=".tmp",
+        dir=str(dest.parent),
+    )
+    Path(tmp_name).unlink()
+    return Path(tmp_name)
+
+
+@contextmanager
+def hold_output_lock(dest: Path):
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = dest.parent / f".{dest.name}.lock"
+    with lock_path.open("a+", encoding="utf-8") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+
+def download(url: str, dest: Path) -> None:
+    with hold_output_lock(dest):
+        if dest.exists():
+            return
+        tmp = unique_tmp_path(dest)
+        try:
+            with urllib.request.urlopen(url) as response, tmp.open("wb") as out:
+                shutil.copyfileobj(response, out)
+            tmp.replace(dest)
+        finally:
+            tmp.unlink(missing_ok=True)
 
 
 def maybe_decompress(path: Path) -> Path:
@@ -35,14 +64,18 @@ def maybe_decompress(path: Path) -> Path:
         return path
 
     target = path.with_suffix("")
-    tmp = target.with_suffix(target.suffix + ".tmp")
-    if decompressor is not None:
-        with decompressor(path, "rb") as src, tmp.open("wb") as dst:
-            shutil.copyfileobj(src, dst)
-    else:
-        with tmp.open("wb") as dst:
-            subprocess.run(["zstd", "-d", "-q", "-c", str(path)], check=True, stdout=dst)
-    tmp.replace(target)
+    with hold_output_lock(target):
+        tmp = unique_tmp_path(target)
+        try:
+            if decompressor is not None:
+                with decompressor(path, "rb") as src, tmp.open("wb") as dst:
+                    shutil.copyfileobj(src, dst)
+            else:
+                with tmp.open("wb") as dst:
+                    subprocess.run(["zstd", "-d", "-q", "-c", str(path)], check=True, stdout=dst)
+            tmp.replace(target)
+        finally:
+            tmp.unlink(missing_ok=True)
     return target
 
 

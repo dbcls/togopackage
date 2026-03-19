@@ -10,7 +10,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from source_data import maybe_decompress, prepare_input_manifest
+from source_data import maybe_decompress, prepare_input_manifest, unique_tmp_path
 
 
 @unittest.skipUnless(importlib.util.find_spec("yaml"), "PyYAML is required")
@@ -143,6 +143,23 @@ class MaybeDecompressTest(unittest.TestCase):
 
             output = maybe_decompress(path)
             return output.read_bytes()
+
+
+class UniqueTmpPathTest(unittest.TestCase):
+    def test_unique_tmp_path_creates_distinct_names_in_same_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dest = Path(tmpdir) / "source.ttl.gz"
+
+            first = unique_tmp_path(dest)
+            second = unique_tmp_path(dest)
+
+            self.assertEqual(first.parent, dest.parent)
+            self.assertEqual(second.parent, dest.parent)
+            self.assertNotEqual(first, second)
+            self.assertEqual(first.suffix, ".tmp")
+            self.assertEqual(second.suffix, ".tmp")
+            self.assertFalse(first.exists())
+            self.assertFalse(second.exists())
 
 
 if __name__ == "__main__":

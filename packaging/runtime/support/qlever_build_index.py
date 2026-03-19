@@ -12,7 +12,7 @@ def build_index(manifest: dict, index_base: str) -> None:
     index_dir = Path(index_base).parent
     index_dir.mkdir(parents=True, exist_ok=True)
 
-    cmd = ["/qlever/qlever-index", "-i", index_base]
+    cmd = ["/qlever/qlever-index", "-i", index_base, "--parse-parallel", "false"]
     for source in manifest["sources"]:
         input_file = source["path"]
         graph = source["graph"]
