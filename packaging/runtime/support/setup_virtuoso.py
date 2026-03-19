@@ -39,8 +39,8 @@ Striping = 0
 ServerPort = {isql_port}
 LiteMode = 0
 DisableUnixSocket = 1
-NumberOfBuffers = 17000
-MaxDirtyBuffers = 13000
+NumberOfBuffers = 3000000
+MaxDirtyBuffers = 2250000
 MaxCheckpointRemap = 2000
 CheckpointInterval = 60
 O_DIRECT = 0
@@ -51,6 +51,7 @@ PrefixResultNames = 0
 RdfFreeTextRulesSize = 100
 IndexTreeMaps = 64
 MaxStaticCursorRows = 5000
+MaxQueryMem = 4G
 DefaultHost = localhost:{http_port}
 
 [HTTPServer]
