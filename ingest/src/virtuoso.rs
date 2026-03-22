@@ -318,11 +318,13 @@ pub fn load_sql_lines(manifest: &InputManifest) -> Result<Vec<String>, String> {
 
 fn push_load_sql_lines(lines: &mut Vec<String>, source: &ManifestSource) -> Result<(), String> {
     let path = Path::new(&source.path);
+    let base_iri = ttl_base_iri(&source.path, source.graph.as_deref());
     let graph = sql_string(source.graph.as_deref());
     match source.format.as_str() {
         "ttl" => lines.push(format!(
-            "DB.DBA.TTLP_MT(file_to_string_output({}), '', {}, 0, 0, 0, 0);",
+            "DB.DBA.TTLP_MT(file_to_string_output({}), {}, {}, 0, 0, 0, 0);",
             sql_string(Some(&source.path)),
+            sql_string(Some(&base_iri)),
             graph
         )),
         "nt" | "nq" => {
@@ -345,6 +347,16 @@ fn push_load_sql_lines(lines: &mut Vec<String>, source: &ManifestSource) -> Resu
     }
     lines.push(String::from("checkpoint;"));
     Ok(())
+}
+
+fn ttl_base_iri(path: &str, graph: Option<&str>) -> String {
+    graph
+        .map(str::to_owned)
+        .unwrap_or_else(|| file_iri(path))
+}
+
+fn file_iri(path: &str) -> String {
+    format!("file://{path}")
 }
 
 fn sql_string(value: Option<&str>) -> String {
@@ -384,10 +396,33 @@ mod tests {
         assert_eq!(
             lines,
             vec![
-                String::from("DB.DBA.TTLP_MT(file_to_string_output('/data/sources/demo.ttl'), '', 'http://example.org/graph/demo', 0, 0, 0, 0);"),
+                String::from("DB.DBA.TTLP_MT(file_to_string_output('/data/sources/demo.ttl'), 'http://example.org/graph/demo', 'http://example.org/graph/demo', 0, 0, 0, 0);"),
                 String::from("checkpoint;"),
                 String::from("ld_dir('/data/sources', 'demo.nq', NULL);"),
                 String::from("rdf_loader_run();"),
+                String::from("checkpoint;"),
+            ]
+        );
+    }
+
+    #[test]
+    fn load_sql_lines_uses_file_iri_for_default_graph_ttl() {
+        let manifest = InputManifest {
+            sources: vec![ManifestSource {
+                path: String::from("/data/sources/demo.ttl"),
+                graph: None,
+                format: String::from("ttl"),
+                sha256: String::new(),
+            }],
+            input_hash: String::new(),
+        };
+
+        let lines = load_sql_lines(&manifest).expect("sql lines");
+
+        assert_eq!(
+            lines,
+            vec![
+                String::from("DB.DBA.TTLP_MT(file_to_string_output('/data/sources/demo.ttl'), 'file:///data/sources/demo.ttl', NULL, 0, 0, 0, 0);"),
                 String::from("checkpoint;"),
             ]
         );
