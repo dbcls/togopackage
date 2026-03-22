@@ -48,13 +48,6 @@ pub fn prepare_input_manifest(
     Ok(manifest)
 }
 
-pub fn read_manifest(path: &Path) -> Result<InputManifest, String> {
-    let contents = fs::read_to_string(path)
-        .map_err(|error| format!("failed to read manifest {}: {error}", path.display()))?;
-    serde_json::from_str(&contents)
-        .map_err(|error| format!("failed to parse manifest {}: {error}", path.display()))
-}
-
 pub fn write_manifest(path: &Path, manifest: &InputManifest) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)

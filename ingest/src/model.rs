@@ -9,9 +9,9 @@ pub struct RuntimePaths {
     pub qlever_index_base: String,
     pub virtuoso_data_dir: PathBuf,
     pub virtuoso_ini_path: PathBuf,
-    pub virtuoso_load_sql_path: PathBuf,
     pub virtuoso_http_port: String,
     pub virtuoso_isql_port: String,
+    pub virtuoso_dba_password: String,
 }
 
 #[derive(Debug, Deserialize)]

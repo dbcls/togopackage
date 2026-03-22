@@ -92,7 +92,6 @@ pub struct Config {
     pub virtuoso_isql_port: String,
     pub virtuoso_data_dir: String,
     pub virtuoso_ini_path: String,
-    pub virtuoso_load_sql_path: String,
     pub virtuoso_dba_password: String,
     pub tabulae_queries_dir: String,
     pub tabulae_dist_dir: String,
@@ -162,7 +161,6 @@ impl Config {
             virtuoso_isql_port: String::from("1111"),
             virtuoso_data_dir: virtuoso_data_dir.clone(),
             virtuoso_ini_path: format!("{virtuoso_data_dir}/virtuoso.ini"),
-            virtuoso_load_sql_path: format!("{virtuoso_data_dir}/load.sql"),
             virtuoso_dba_password: String::from("dba"),
 
             tabulae_queries_dir: String::from("/data/tabulae/queries"),

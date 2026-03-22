@@ -1,9 +1,13 @@
-use crate::manifest::read_manifest;
 use crate::model::{InputManifest, ManifestSource, RuntimePaths};
-use crate::state::ensure_current_generated_state;
+use crate::state::{ensure_current_generated_state, log_up_to_date, read_stamp, write_stamp};
 use std::ffi::OsStr;
-use std::fs;
+use std::fs::{self, File};
+use std::io::Write;
 use std::path::Path;
+use std::process::{Child, Command, Output, Stdio};
+use std::thread::sleep;
+use std::time::Duration;
+use tempfile::NamedTempFile;
 
 pub fn prepare_virtuoso(paths: &RuntimePaths, manifest: &InputManifest) -> Result<(), String> {
     let db_dir = paths.virtuoso_data_dir.join("db");
@@ -29,30 +33,22 @@ pub fn prepare_virtuoso(paths: &RuntimePaths, manifest: &InputManifest) -> Resul
         &stamp_path,
         &manifest.input_hash,
         || virtuoso_state_exists(&db_dir),
-        || reset_virtuoso_state(&db_dir, &stamp_path, &paths.virtuoso_load_sql_path),
+        || reset_virtuoso_state(&db_dir, &stamp_path),
     )?;
 
-    Ok(())
-}
-
-pub fn generate_virtuoso_load_sql(paths: &RuntimePaths) -> Result<String, String> {
-    let manifest = read_manifest(&paths.source_manifest_path)?;
-    let lines = load_sql_lines(&manifest)?;
-    if let Some(parent) = paths.virtuoso_load_sql_path.parent() {
-        fs::create_dir_all(parent).map_err(|error| {
-            format!(
-                "failed to create Virtuoso load SQL directory {}: {error}",
-                parent.display()
-            )
-        })?;
+    if read_stamp(&stamp_path)?.as_deref() == Some(manifest.input_hash.as_str())
+        && virtuoso_state_exists(&db_dir)
+    {
+        log_up_to_date("Virtuoso");
+        return Ok(());
     }
-    fs::write(&paths.virtuoso_load_sql_path, lines.join("\n") + "\n").map_err(|error| {
-        format!(
-            "failed to write Virtuoso load SQL {}: {error}",
-            paths.virtuoso_load_sql_path.display()
-        )
-    })?;
-    Ok(manifest.input_hash)
+
+    eprintln!("Virtuoso data import started.");
+    import_virtuoso_data(paths, manifest)?;
+    write_stamp(&stamp_path, &manifest.input_hash)?;
+    eprintln!("Virtuoso data import completed successfully.");
+
+    Ok(())
 }
 
 fn ensure_virtuoso_config(
@@ -158,11 +154,7 @@ fn virtuoso_state_exists(db_dir: &Path) -> bool {
         .unwrap_or(false)
 }
 
-fn reset_virtuoso_state(
-    db_dir: &Path,
-    stamp_path: &Path,
-    load_sql_path: &Path,
-) -> Result<(), String> {
+fn reset_virtuoso_state(db_dir: &Path, stamp_path: &Path) -> Result<(), String> {
     if db_dir.exists() {
         for entry in fs::read_dir(db_dir)
             .map_err(|error| format!("failed to read directory {}: {error}", db_dir.display()))?
@@ -180,11 +172,127 @@ fn reset_virtuoso_state(
         fs::remove_file(stamp_path)
             .map_err(|error| format!("failed to remove {}: {error}", stamp_path.display()))?;
     }
-    if load_sql_path.exists() {
-        fs::remove_file(load_sql_path)
-            .map_err(|error| format!("failed to remove {}: {error}", load_sql_path.display()))?;
-    }
     Ok(())
+}
+
+fn import_virtuoso_data(paths: &RuntimePaths, manifest: &InputManifest) -> Result<(), String> {
+    let mut child = start_virtuoso(paths)?;
+    let import_result = (|| {
+        wait_for_virtuoso_http(paths, &mut child)?;
+        let script = load_sql_lines(manifest)?.join("\n") + "\n";
+        run_isql_script(paths, &script)?;
+        Ok(())
+    })();
+    stop_virtuoso(paths, &mut child)?;
+    import_result
+}
+
+fn start_virtuoso(paths: &RuntimePaths) -> Result<Child, String> {
+    Command::new("/usr/bin/virtuoso-t")
+        .arg("-f")
+        .arg("-c")
+        .arg(&paths.virtuoso_ini_path)
+        .arg(format!("+pwddba{}", paths.virtuoso_dba_password))
+        .arg(format!("+pwddav{}", paths.virtuoso_dba_password))
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .map_err(|error| format!("failed to start Virtuoso: {error}"))
+}
+
+fn wait_for_virtuoso_http(paths: &RuntimePaths, child: &mut Child) -> Result<(), String> {
+    let url = format!("http://127.0.0.1:{}/sparql", paths.virtuoso_http_port);
+    for _ in 0..60 {
+        if let Some(status) = child
+            .try_wait()
+            .map_err(|error| format!("failed to poll Virtuoso process: {error}"))?
+        {
+            return Err(format!("Virtuoso exited before becoming ready: {status}"));
+        }
+
+        let status = Command::new("curl")
+            .arg("-fsS")
+            .arg("-o")
+            .arg("/dev/null")
+            .arg(&url)
+            .status()
+            .map_err(|error| format!("failed to probe Virtuoso HTTP endpoint {url}: {error}"))?;
+        if status.success() {
+            return Ok(());
+        }
+        sleep(Duration::from_secs(1));
+    }
+
+    Err(String::from("timed out waiting for Virtuoso HTTP endpoint"))
+}
+
+fn run_isql_script(paths: &RuntimePaths, script: &str) -> Result<(), String> {
+    let mut temp = NamedTempFile::new_in(&paths.virtuoso_data_dir).map_err(|error| {
+        format!(
+            "failed to create temporary Virtuoso SQL file in {}: {error}",
+            paths.virtuoso_data_dir.display()
+        )
+    })?;
+    temp.write_all(script.as_bytes())
+        .map_err(|error| format!("failed to write temporary Virtuoso SQL script: {error}"))?;
+    temp.flush()
+        .map_err(|error| format!("failed to flush temporary Virtuoso SQL script: {error}"))?;
+
+    let input = File::open(temp.path()).map_err(|error| {
+        format!(
+            "failed to reopen temporary Virtuoso SQL file {}: {error}",
+            temp.path().display()
+        )
+    })?;
+    let output = Command::new("isql-vt")
+        .arg(format!("127.0.0.1:{}", paths.virtuoso_isql_port))
+        .arg("dba")
+        .arg(&paths.virtuoso_dba_password)
+        .arg("VERBOSE=OFF")
+        .arg("PROMPT=OFF")
+        .stdin(Stdio::from(input))
+        .output()
+        .map_err(|error| format!("failed to run isql-vt: {error}"))?;
+    ensure_isql_success("Virtuoso SQL execution", &output)
+}
+
+fn stop_virtuoso(paths: &RuntimePaths, child: &mut Child) -> Result<(), String> {
+    let shutdown_result = run_isql_script(paths, "shutdown;\n");
+    let wait_result = child
+        .wait()
+        .map_err(|error| format!("failed to wait for Virtuoso process: {error}"));
+
+    match (shutdown_result, wait_result) {
+        (Ok(()), Ok(status)) if status.success() => Ok(()),
+        (Ok(()), Ok(status)) => Err(format!("Virtuoso exited with {status} after shutdown")),
+        (Err(error), Ok(_)) => Err(error),
+        (Ok(()), Err(error)) => Err(error),
+        (Err(error), Err(wait_error)) => Err(format!("{error}; {wait_error}")),
+    }
+}
+
+fn ensure_isql_success(context: &str, output: &Output) -> Result<(), String> {
+    if output.status.success() && !stdout_or_stderr_has_isql_error(output) {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    let details = if !stderr.is_empty() {
+        stderr
+    } else if !stdout.is_empty() {
+        stdout
+    } else {
+        format!("command exited with {}", output.status)
+    };
+    Err(format!("{context} failed: {details}"))
+}
+
+fn stdout_or_stderr_has_isql_error(output: &Output) -> bool {
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    stdout.lines().any(|line| line.starts_with("*** Error"))
+        || stderr.lines().any(|line| line.starts_with("*** Error"))
 }
 
 pub fn load_sql_lines(manifest: &InputManifest) -> Result<Vec<String>, String> {

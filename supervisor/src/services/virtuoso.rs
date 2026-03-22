@@ -28,10 +28,6 @@ fn env(config: &Config) -> Vec<(&'static str, String)> {
         ("VIRTUOSO_DATA_DIR", config.virtuoso_data_dir.clone()),
         ("VIRTUOSO_INI_PATH", config.virtuoso_ini_path.clone()),
         (
-            "VIRTUOSO_LOAD_SQL_PATH",
-            config.virtuoso_load_sql_path.clone(),
-        ),
-        (
             "VIRTUOSO_DBA_PASSWORD",
             config.virtuoso_dba_password.clone(),
         ),
