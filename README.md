@@ -127,13 +127,13 @@ qlever:
 virtuoso:
   server:
     DBA_PASSWORD: dba
-    NUMBER_OF_BUFFERS: 170000
-    MAX_DIRTY_BUFFERS: 130000
-    MAX_CHECKPOINT_REMAP: 500
-    CHECKPOINT_INTERVAL: 120
-    MAX_QUERY_MEM: 512M
-    SERVER_THREADS: 4
-    MAX_CLIENT_CONNECTIONS: 8
+    NUMBER_OF_BUFFERS: 1500000
+    MAX_DIRTY_BUFFERS: 1125000
+    MAX_CHECKPOINT_REMAP: 1000
+    CHECKPOINT_INTERVAL: 60
+    MAX_QUERY_MEM: 2G
+    SERVER_THREADS: 10
+    MAX_CLIENT_CONNECTIONS: 10
 
 source:
   - name: Example RDF source
@@ -179,13 +179,13 @@ Rules:
 - `virtuoso` is optional
 - `virtuoso.server` is optional
 - `virtuoso.server.DBA_PASSWORD` is optional. Default: `dba`
-- `virtuoso.server.NUMBER_OF_BUFFERS` is optional. Default: `170000`
-- `virtuoso.server.MAX_DIRTY_BUFFERS` is optional. Default: `130000`
-- `virtuoso.server.MAX_CHECKPOINT_REMAP` is optional. Default: `500`
-- `virtuoso.server.CHECKPOINT_INTERVAL` is optional. Default: `120`
-- `virtuoso.server.MAX_QUERY_MEM` is optional. Default: `512M`
-- `virtuoso.server.SERVER_THREADS` is optional. Default: `4`
-- `virtuoso.server.MAX_CLIENT_CONNECTIONS` is optional. Default: `8`
+- `virtuoso.server.NUMBER_OF_BUFFERS` is optional. Default: `1500000`
+- `virtuoso.server.MAX_DIRTY_BUFFERS` is optional. Default: `1125000`
+- `virtuoso.server.MAX_CHECKPOINT_REMAP` is optional. Default: `1000`
+- `virtuoso.server.CHECKPOINT_INTERVAL` is optional. Default: `60`
+- `virtuoso.server.MAX_QUERY_MEM` is optional. Default: `2G`
+- `virtuoso.server.SERVER_THREADS` is optional. Default: `10`
+- `virtuoso.server.MAX_CLIENT_CONNECTIONS` is optional. Default: `10`
 - Virtuoso numeric tuning values are YAML integers. Use strings only for values with units such as `MAX_QUERY_MEM`
 - Virtuoso ports and data paths cannot be changed from `config.yaml` because they are tied to other runtime services and exposed port assumptions
 - `format` can be specified for each `source`

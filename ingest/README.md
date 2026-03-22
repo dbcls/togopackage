@@ -43,13 +43,13 @@ All commands use the same set of CLI options, and every option can also be provi
 | `--virtuoso-http-port` | `VIRTUOSO_HTTP_PORT` | `8890` |
 | `--virtuoso-isql-port` | `VIRTUOSO_ISQL_PORT` | `1111` |
 | `--virtuoso-dba-password` | `VIRTUOSO_DBA_PASSWORD` | `dba` |
-| `--virtuoso-number-of-buffers` | `VIRTUOSO_NUMBER_OF_BUFFERS` | `170000` |
-| `--virtuoso-max-dirty-buffers` | `VIRTUOSO_MAX_DIRTY_BUFFERS` | `130000` |
-| `--virtuoso-max-checkpoint-remap` | `VIRTUOSO_MAX_CHECKPOINT_REMAP` | `500` |
-| `--virtuoso-checkpoint-interval` | `VIRTUOSO_CHECKPOINT_INTERVAL` | `120` |
-| `--virtuoso-max-query-mem` | `VIRTUOSO_MAX_QUERY_MEM` | `512M` |
-| `--virtuoso-server-threads` | `VIRTUOSO_SERVER_THREADS` | `4` |
-| `--virtuoso-max-client-connections` | `VIRTUOSO_MAX_CLIENT_CONNECTIONS` | `8` |
+| `--virtuoso-number-of-buffers` | `VIRTUOSO_NUMBER_OF_BUFFERS` | `1500000` |
+| `--virtuoso-max-dirty-buffers` | `VIRTUOSO_MAX_DIRTY_BUFFERS` | `1125000` |
+| `--virtuoso-max-checkpoint-remap` | `VIRTUOSO_MAX_CHECKPOINT_REMAP` | `1000` |
+| `--virtuoso-checkpoint-interval` | `VIRTUOSO_CHECKPOINT_INTERVAL` | `60` |
+| `--virtuoso-max-query-mem` | `VIRTUOSO_MAX_QUERY_MEM` | `2G` |
+| `--virtuoso-server-threads` | `VIRTUOSO_SERVER_THREADS` | `10` |
+| `--virtuoso-max-client-connections` | `VIRTUOSO_MAX_CLIENT_CONNECTIONS` | `10` |
 
 When `togopackage-ingest` is run through `supervisor`, these Virtuoso tuning values are normally sourced from `/data/config.yaml` under `virtuoso.server`.
 Port and path variables still exist for the CLI, but TogoPackage intentionally keeps them fixed at the runtime level because other services and published container ports depend on them.

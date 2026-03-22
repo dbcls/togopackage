@@ -3,13 +3,13 @@ use serde_yaml::Value;
 use std::fs;
 
 const DEFAULT_QLEVER_MEMORY_FOR_QUERIES: &str = "2G";
-const DEFAULT_VIRTUOSO_NUMBER_OF_BUFFERS: u64 = 170000;
-const DEFAULT_VIRTUOSO_MAX_DIRTY_BUFFERS: u64 = 130000;
-const DEFAULT_VIRTUOSO_MAX_CHECKPOINT_REMAP: u64 = 500;
-const DEFAULT_VIRTUOSO_CHECKPOINT_INTERVAL: u64 = 120;
-const DEFAULT_VIRTUOSO_MAX_QUERY_MEM: &str = "512M";
-const DEFAULT_VIRTUOSO_SERVER_THREADS: u64 = 4;
-const DEFAULT_VIRTUOSO_MAX_CLIENT_CONNECTIONS: u64 = 8;
+const DEFAULT_VIRTUOSO_NUMBER_OF_BUFFERS: u64 = 1500000;
+const DEFAULT_VIRTUOSO_MAX_DIRTY_BUFFERS: u64 = 1125000;
+const DEFAULT_VIRTUOSO_MAX_CHECKPOINT_REMAP: u64 = 1000;
+const DEFAULT_VIRTUOSO_CHECKPOINT_INTERVAL: u64 = 60;
+const DEFAULT_VIRTUOSO_MAX_QUERY_MEM: &str = "2G";
+const DEFAULT_VIRTUOSO_SERVER_THREADS: u64 = 10;
+const DEFAULT_VIRTUOSO_MAX_CLIENT_CONNECTIONS: u64 = 10;
 
 #[derive(Clone, Copy, Debug)]
 pub enum ConfigPath {
@@ -493,12 +493,12 @@ mod tests {
 
         fs::remove_file(&path).expect("remove config");
         assert_eq!(config.virtuoso_dba_password, "dba");
-        assert_eq!(config.virtuoso_number_of_buffers, "170000");
-        assert_eq!(config.virtuoso_max_dirty_buffers, "130000");
-        assert_eq!(config.virtuoso_max_checkpoint_remap, "500");
-        assert_eq!(config.virtuoso_checkpoint_interval, "120");
-        assert_eq!(config.virtuoso_max_query_mem, "512M");
-        assert_eq!(config.virtuoso_server_threads, "4");
-        assert_eq!(config.virtuoso_max_client_connections, "8");
+        assert_eq!(config.virtuoso_number_of_buffers, "1500000");
+        assert_eq!(config.virtuoso_max_dirty_buffers, "1125000");
+        assert_eq!(config.virtuoso_max_checkpoint_remap, "1000");
+        assert_eq!(config.virtuoso_checkpoint_interval, "60");
+        assert_eq!(config.virtuoso_max_query_mem, "2G");
+        assert_eq!(config.virtuoso_server_threads, "10");
+        assert_eq!(config.virtuoso_max_client_connections, "10");
     }
 }
