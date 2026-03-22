@@ -127,13 +127,13 @@ qlever:
 virtuoso:
   server:
     DBA_PASSWORD: dba
-    NUMBER_OF_BUFFERS: "170000"
-    MAX_DIRTY_BUFFERS: "130000"
-    MAX_CHECKPOINT_REMAP: "500"
-    CHECKPOINT_INTERVAL: "120"
+    NUMBER_OF_BUFFERS: 170000
+    MAX_DIRTY_BUFFERS: 130000
+    MAX_CHECKPOINT_REMAP: 500
+    CHECKPOINT_INTERVAL: 120
     MAX_QUERY_MEM: 512M
-    SERVER_THREADS: "4"
-    MAX_CLIENT_CONNECTIONS: "8"
+    SERVER_THREADS: 4
+    MAX_CLIENT_CONNECTIONS: 8
 
 source:
   - name: Example RDF source
@@ -186,6 +186,7 @@ Rules:
 - `virtuoso.server.MAX_QUERY_MEM` is optional. Default: `512M`
 - `virtuoso.server.SERVER_THREADS` is optional. Default: `4`
 - `virtuoso.server.MAX_CLIENT_CONNECTIONS` is optional. Default: `8`
+- Virtuoso numeric tuning values are YAML integers. Use strings only for values with units such as `MAX_QUERY_MEM`
 - Virtuoso ports and data paths cannot be changed from `config.yaml` because they are tied to other runtime services and exposed port assumptions
 - `format` can be specified for each `source`
 - `source.format` is optional. Default: `ttl`

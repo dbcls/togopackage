@@ -3,6 +3,13 @@ use serde_yaml::Value;
 use std::fs;
 
 const DEFAULT_QLEVER_MEMORY_FOR_QUERIES: &str = "2G";
+const DEFAULT_VIRTUOSO_NUMBER_OF_BUFFERS: u64 = 170000;
+const DEFAULT_VIRTUOSO_MAX_DIRTY_BUFFERS: u64 = 130000;
+const DEFAULT_VIRTUOSO_MAX_CHECKPOINT_REMAP: u64 = 500;
+const DEFAULT_VIRTUOSO_CHECKPOINT_INTERVAL: u64 = 120;
+const DEFAULT_VIRTUOSO_MAX_QUERY_MEM: &str = "512M";
+const DEFAULT_VIRTUOSO_SERVER_THREADS: u64 = 4;
+const DEFAULT_VIRTUOSO_MAX_CLIENT_CONNECTIONS: u64 = 8;
 
 #[derive(Clone, Copy, Debug)]
 pub enum ConfigPath {
@@ -71,19 +78,19 @@ struct VirtuosoServerConfigFile {
     #[serde(default, rename = "DBA_PASSWORD")]
     dba_password: Option<String>,
     #[serde(default, rename = "NUMBER_OF_BUFFERS")]
-    number_of_buffers: Option<String>,
+    number_of_buffers: Option<u64>,
     #[serde(default, rename = "MAX_DIRTY_BUFFERS")]
-    max_dirty_buffers: Option<String>,
+    max_dirty_buffers: Option<u64>,
     #[serde(default, rename = "MAX_CHECKPOINT_REMAP")]
-    max_checkpoint_remap: Option<String>,
+    max_checkpoint_remap: Option<u64>,
     #[serde(default, rename = "CHECKPOINT_INTERVAL")]
-    checkpoint_interval: Option<String>,
+    checkpoint_interval: Option<u64>,
     #[serde(default, rename = "MAX_QUERY_MEM")]
     max_query_mem: Option<String>,
     #[serde(default, rename = "SERVER_THREADS")]
-    server_threads: Option<String>,
+    server_threads: Option<u64>,
     #[serde(default, rename = "MAX_CLIENT_CONNECTIONS")]
-    max_client_connections: Option<String>,
+    max_client_connections: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -215,37 +222,43 @@ impl Config {
                 .virtuoso
                 .server
                 .number_of_buffers
-                .unwrap_or_else(|| String::from("170000")),
+                .unwrap_or(DEFAULT_VIRTUOSO_NUMBER_OF_BUFFERS)
+                .to_string(),
             virtuoso_max_dirty_buffers: runtime_config
                 .virtuoso
                 .server
                 .max_dirty_buffers
-                .unwrap_or_else(|| String::from("130000")),
+                .unwrap_or(DEFAULT_VIRTUOSO_MAX_DIRTY_BUFFERS)
+                .to_string(),
             virtuoso_max_checkpoint_remap: runtime_config
                 .virtuoso
                 .server
                 .max_checkpoint_remap
-                .unwrap_or_else(|| String::from("500")),
+                .unwrap_or(DEFAULT_VIRTUOSO_MAX_CHECKPOINT_REMAP)
+                .to_string(),
             virtuoso_checkpoint_interval: runtime_config
                 .virtuoso
                 .server
                 .checkpoint_interval
-                .unwrap_or_else(|| String::from("120")),
+                .unwrap_or(DEFAULT_VIRTUOSO_CHECKPOINT_INTERVAL)
+                .to_string(),
             virtuoso_max_query_mem: runtime_config
                 .virtuoso
                 .server
                 .max_query_mem
-                .unwrap_or_else(|| String::from("512M")),
+                .unwrap_or_else(|| String::from(DEFAULT_VIRTUOSO_MAX_QUERY_MEM)),
             virtuoso_server_threads: runtime_config
                 .virtuoso
                 .server
                 .server_threads
-                .unwrap_or_else(|| String::from("4")),
+                .unwrap_or(DEFAULT_VIRTUOSO_SERVER_THREADS)
+                .to_string(),
             virtuoso_max_client_connections: runtime_config
                 .virtuoso
                 .server
                 .max_client_connections
-                .unwrap_or_else(|| String::from("8")),
+                .unwrap_or(DEFAULT_VIRTUOSO_MAX_CLIENT_CONNECTIONS)
+                .to_string(),
 
             tabulae_queries_dir: String::from("/data/tabulae/queries"),
             tabulae_dist_dir: String::from("/data/tabulae/dist"),
@@ -408,13 +421,13 @@ mod tests {
                 "virtuoso:\n",
                 "  server:\n",
                 "    DBA_PASSWORD: secret-dba\n",
-                "    NUMBER_OF_BUFFERS: \"123\"\n",
-                "    MAX_DIRTY_BUFFERS: \"45\"\n",
-                "    MAX_CHECKPOINT_REMAP: \"67\"\n",
-                "    CHECKPOINT_INTERVAL: \"89\"\n",
+                "    NUMBER_OF_BUFFERS: 123\n",
+                "    MAX_DIRTY_BUFFERS: 45\n",
+                "    MAX_CHECKPOINT_REMAP: 67\n",
+                "    CHECKPOINT_INTERVAL: 89\n",
                 "    MAX_QUERY_MEM: 6G\n",
-                "    SERVER_THREADS: \"12\"\n",
-                "    MAX_CLIENT_CONNECTIONS: \"34\"\n",
+                "    SERVER_THREADS: 12\n",
+                "    MAX_CLIENT_CONNECTIONS: 34\n",
             ),
         )
         .expect("write config");
@@ -430,6 +443,27 @@ mod tests {
         assert_eq!(config.virtuoso_max_query_mem, "6G");
         assert_eq!(config.virtuoso_server_threads, "12");
         assert_eq!(config.virtuoso_max_client_connections, "34");
+    }
+
+    #[test]
+    fn rejects_string_values_for_virtuoso_numeric_settings() {
+        let path = temp_config_path("togopackage-config");
+        fs::write(
+            &path,
+            concat!(
+                "source: []\n",
+                "virtuoso:\n",
+                "  server:\n",
+                "    NUMBER_OF_BUFFERS: \"123\"\n",
+            ),
+        )
+        .expect("write config");
+
+        let error = Config::from_config_path(&path).expect_err("string value should fail");
+
+        fs::remove_file(&path).expect("remove config");
+        assert!(error.contains("NUMBER_OF_BUFFERS"));
+        assert!(error.contains("integer"));
     }
 
     #[test]
