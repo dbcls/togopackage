@@ -34,19 +34,19 @@ pub struct CommonArgs {
     pub virtuoso_isql_port: String,
     #[arg(long, env = "VIRTUOSO_DBA_PASSWORD", default_value = "dba")]
     pub virtuoso_dba_password: String,
-    #[arg(long, env = "VIRTUOSO_NUMBER_OF_BUFFERS", default_value = "3000000")]
+    #[arg(long, env = "VIRTUOSO_NUMBER_OF_BUFFERS", default_value = "170000")]
     pub virtuoso_number_of_buffers: String,
-    #[arg(long, env = "VIRTUOSO_MAX_DIRTY_BUFFERS", default_value = "2250000")]
+    #[arg(long, env = "VIRTUOSO_MAX_DIRTY_BUFFERS", default_value = "130000")]
     pub virtuoso_max_dirty_buffers: String,
-    #[arg(long, env = "VIRTUOSO_MAX_CHECKPOINT_REMAP", default_value = "2000")]
+    #[arg(long, env = "VIRTUOSO_MAX_CHECKPOINT_REMAP", default_value = "500")]
     pub virtuoso_max_checkpoint_remap: String,
-    #[arg(long, env = "VIRTUOSO_CHECKPOINT_INTERVAL", default_value = "60")]
+    #[arg(long, env = "VIRTUOSO_CHECKPOINT_INTERVAL", default_value = "120")]
     pub virtuoso_checkpoint_interval: String,
-    #[arg(long, env = "VIRTUOSO_MAX_QUERY_MEM", default_value = "4G")]
+    #[arg(long, env = "VIRTUOSO_MAX_QUERY_MEM", default_value = "512M")]
     pub virtuoso_max_query_mem: String,
-    #[arg(long, env = "VIRTUOSO_SERVER_THREADS", default_value = "10")]
+    #[arg(long, env = "VIRTUOSO_SERVER_THREADS", default_value = "4")]
     pub virtuoso_server_threads: String,
-    #[arg(long, env = "VIRTUOSO_MAX_CLIENT_CONNECTIONS", default_value = "10")]
+    #[arg(long, env = "VIRTUOSO_MAX_CLIENT_CONNECTIONS", default_value = "8")]
     pub virtuoso_max_client_connections: String,
 }
 

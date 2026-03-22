@@ -2,6 +2,8 @@ use serde::Deserialize;
 use serde_yaml::Value;
 use std::fs;
 
+const DEFAULT_QLEVER_MEMORY_FOR_QUERIES: &str = "2G";
+
 #[derive(Clone, Copy, Debug)]
 pub enum ConfigPath {
     SparqlProxy,
@@ -154,7 +156,13 @@ impl Config {
             rdf_config_base_dir: String::from("/data/rdf-config"),
 
             qlever_access_token: runtime_config.qlever.server.access_token,
-            qlever_memory_for_queries: runtime_config.qlever.server.memory_for_queries,
+            qlever_memory_for_queries: Some(
+                runtime_config
+                    .qlever
+                    .server
+                    .memory_for_queries
+                    .unwrap_or_else(|| String::from(DEFAULT_QLEVER_MEMORY_FOR_QUERIES)),
+            ),
             qlever_index_base: String::from("/data/qlever/index/default"),
             qlever_data_dir: String::from("/data/sources"),
             source_manifest_path: String::from("/data/sources/source-manifest.json"),
@@ -207,37 +215,37 @@ impl Config {
                 .virtuoso
                 .server
                 .number_of_buffers
-                .unwrap_or_else(|| String::from("3000000")),
+                .unwrap_or_else(|| String::from("170000")),
             virtuoso_max_dirty_buffers: runtime_config
                 .virtuoso
                 .server
                 .max_dirty_buffers
-                .unwrap_or_else(|| String::from("2250000")),
+                .unwrap_or_else(|| String::from("130000")),
             virtuoso_max_checkpoint_remap: runtime_config
                 .virtuoso
                 .server
                 .max_checkpoint_remap
-                .unwrap_or_else(|| String::from("2000")),
+                .unwrap_or_else(|| String::from("500")),
             virtuoso_checkpoint_interval: runtime_config
                 .virtuoso
                 .server
                 .checkpoint_interval
-                .unwrap_or_else(|| String::from("60")),
+                .unwrap_or_else(|| String::from("120")),
             virtuoso_max_query_mem: runtime_config
                 .virtuoso
                 .server
                 .max_query_mem
-                .unwrap_or_else(|| String::from("4G")),
+                .unwrap_or_else(|| String::from("512M")),
             virtuoso_server_threads: runtime_config
                 .virtuoso
                 .server
                 .server_threads
-                .unwrap_or_else(|| String::from("10")),
+                .unwrap_or_else(|| String::from("4")),
             virtuoso_max_client_connections: runtime_config
                 .virtuoso
                 .server
                 .max_client_connections
-                .unwrap_or_else(|| String::from("10")),
+                .unwrap_or_else(|| String::from("8")),
 
             tabulae_queries_dir: String::from("/data/tabulae/queries"),
             tabulae_dist_dir: String::from("/data/tabulae/dist"),
@@ -279,14 +287,18 @@ impl Config {
 mod tests {
     use super::{Config, SparqlBackend};
     use std::fs;
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    static TEMP_CONFIG_COUNTER: AtomicU64 = AtomicU64::new(0);
 
     fn temp_config_path(name: &str) -> String {
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("system time before epoch")
             .as_nanos();
-        format!("/tmp/{}_{}.yaml", name, nanos)
+        let counter = TEMP_CONFIG_COUNTER.fetch_add(1, Ordering::Relaxed);
+        format!("/tmp/{}_{}_{}.yaml", name, nanos, counter)
     }
 
     #[test]
@@ -430,7 +442,7 @@ mod tests {
         fs::remove_file(&path).expect("remove config");
         assert_eq!(config.qlever_port, "7001");
         assert_eq!(config.qlever_access_token, None);
-        assert_eq!(config.qlever_memory_for_queries, None);
+        assert_eq!(config.qlever_memory_for_queries.as_deref(), Some("2G"));
         assert_eq!(config.qlever_timeout, None);
         assert_eq!(config.qlever_cache_max_size, None);
         assert_eq!(config.qlever_cache_max_size_single_entry, None);
@@ -447,12 +459,12 @@ mod tests {
 
         fs::remove_file(&path).expect("remove config");
         assert_eq!(config.virtuoso_dba_password, "dba");
-        assert_eq!(config.virtuoso_number_of_buffers, "3000000");
-        assert_eq!(config.virtuoso_max_dirty_buffers, "2250000");
-        assert_eq!(config.virtuoso_max_checkpoint_remap, "2000");
-        assert_eq!(config.virtuoso_checkpoint_interval, "60");
-        assert_eq!(config.virtuoso_max_query_mem, "4G");
-        assert_eq!(config.virtuoso_server_threads, "10");
-        assert_eq!(config.virtuoso_max_client_connections, "10");
+        assert_eq!(config.virtuoso_number_of_buffers, "170000");
+        assert_eq!(config.virtuoso_max_dirty_buffers, "130000");
+        assert_eq!(config.virtuoso_max_checkpoint_remap, "500");
+        assert_eq!(config.virtuoso_checkpoint_interval, "120");
+        assert_eq!(config.virtuoso_max_query_mem, "512M");
+        assert_eq!(config.virtuoso_server_threads, "4");
+        assert_eq!(config.virtuoso_max_client_connections, "8");
     }
 }

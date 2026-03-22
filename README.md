@@ -119,7 +119,7 @@ sparql_backend: qlever
 qlever:
   server:
     ACCESS_TOKEN: your-access-token
-    MEMORY_FOR_QUERIES: 32G
+    MEMORY_FOR_QUERIES: 2G
     TIMEOUT: 30s
     CACHE_MAX_SIZE: 2G
     CACHE_MAX_SIZE_SINGLE_ENTRY: 1G
@@ -127,13 +127,13 @@ qlever:
 virtuoso:
   server:
     DBA_PASSWORD: dba
-    NUMBER_OF_BUFFERS: "3000000"
-    MAX_DIRTY_BUFFERS: "2250000"
-    MAX_CHECKPOINT_REMAP: "2000"
-    CHECKPOINT_INTERVAL: "60"
-    MAX_QUERY_MEM: 4G
-    SERVER_THREADS: "10"
-    MAX_CLIENT_CONNECTIONS: "10"
+    NUMBER_OF_BUFFERS: "170000"
+    MAX_DIRTY_BUFFERS: "130000"
+    MAX_CHECKPOINT_REMAP: "500"
+    CHECKPOINT_INTERVAL: "120"
+    MAX_QUERY_MEM: 512M
+    SERVER_THREADS: "4"
+    MAX_CLIENT_CONNECTIONS: "8"
 
 source:
   - name: Example RDF source
@@ -170,7 +170,7 @@ Rules:
 - `qlever` is optional
 - `qlever.server` is optional
 - `qlever.server.ACCESS_TOKEN` is optional. If omitted, QLever uses its own default behavior
-- `qlever.server.MEMORY_FOR_QUERIES` is optional. If omitted, TogoPackage does not pass `-m`
+- `qlever.server.MEMORY_FOR_QUERIES` is optional. Default: `2G`
 - `qlever.server.TIMEOUT` is optional. If omitted, TogoPackage does not pass `--timeout`
 - `qlever.server.CACHE_MAX_SIZE` is optional. If omitted, TogoPackage does not pass `--cache-max-size`
 - `qlever.server.CACHE_MAX_SIZE_SINGLE_ENTRY` is optional. If omitted, TogoPackage does not pass `--cache-max-size-single-entry`
