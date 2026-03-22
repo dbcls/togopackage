@@ -1,6 +1,5 @@
 use crate::model::{InputManifest, ManifestSource, RuntimePaths, VirtuosoTuning};
 use crate::state::{ensure_current_generated_state, log_up_to_date, read_stamp, write_stamp};
-use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;
@@ -23,7 +22,7 @@ pub fn prepare_virtuoso(paths: &RuntimePaths, manifest: &InputManifest) -> Resul
         &paths.virtuoso_ini_path,
         &db_dir,
         &paths.virtuoso_data_dir,
-        &paths.qlever_data_dir,
+        &paths.source_data_dir,
         &paths.virtuoso_http_port,
         &paths.virtuoso_isql_port,
         &paths.virtuoso_tuning,
@@ -263,6 +262,7 @@ fn run_isql_script(paths: &RuntimePaths, script: &str) -> Result<(), String> {
         .arg(&paths.virtuoso_dba_password)
         .arg("VERBOSE=OFF")
         .arg("PROMPT=OFF")
+        .current_dir(&paths.virtuoso_data_dir)
         .stdin(Stdio::from(input))
         .output()
         .map_err(|error| format!("failed to run isql-vt: {error}"))?;
@@ -317,32 +317,21 @@ pub fn load_sql_lines(manifest: &InputManifest) -> Result<Vec<String>, String> {
 }
 
 fn push_load_sql_lines(lines: &mut Vec<String>, source: &ManifestSource) -> Result<(), String> {
-    let path = Path::new(&source.path);
     let base_iri = ttl_base_iri(&source.path, source.graph.as_deref());
     let graph = sql_string(source.graph.as_deref());
     match source.format.as_str() {
-        "ttl" => lines.push(format!(
+        "ttl" | "nt" => lines.push(format!(
             "DB.DBA.TTLP_MT(file_to_string_output({}), {}, {}, 0, 0, 0, 0);",
             sql_string(Some(&source.path)),
             sql_string(Some(&base_iri)),
             graph
         )),
-        "nt" | "nq" => {
-            let parent = path
-                .parent()
-                .ok_or_else(|| format!("source path has no parent: {}", source.path))?;
-            let name = path
-                .file_name()
-                .and_then(OsStr::to_str)
-                .ok_or_else(|| format!("source path has no file name: {}", source.path))?;
-            lines.push(format!(
-                "ld_dir({}, {}, {});",
-                sql_string(Some(&parent.to_string_lossy())),
-                sql_string(Some(name)),
-                graph
-            ));
-            lines.push(String::from("rdf_loader_run();"));
-        }
+        "nq" => lines.push(format!(
+            "DB.DBA.TTLP_MT(file_to_string_output({}), {}, {}, 512, 0, 0, 0);",
+            sql_string(Some(&source.path)),
+            sql_string(Some(&base_iri)),
+            graph
+        )),
         other => return Err(format!("Unsupported format in source manifest: {other}")),
     }
     lines.push(String::from("checkpoint;"));
@@ -350,9 +339,7 @@ fn push_load_sql_lines(lines: &mut Vec<String>, source: &ManifestSource) -> Resu
 }
 
 fn ttl_base_iri(path: &str, graph: Option<&str>) -> String {
-    graph
-        .map(str::to_owned)
-        .unwrap_or_else(|| file_iri(path))
+    graph.map(str::to_owned).unwrap_or_else(|| file_iri(path))
 }
 
 fn file_iri(path: &str) -> String {
@@ -382,9 +369,9 @@ mod tests {
                     sha256: String::new(),
                 },
                 ManifestSource {
-                    path: String::from("/data/sources/demo.nq"),
+                    path: String::from("/data/sources/demo.nt"),
                     graph: None,
-                    format: String::from("nq"),
+                    format: String::from("nt"),
                     sha256: String::new(),
                 },
             ],
@@ -398,8 +385,7 @@ mod tests {
             vec![
                 String::from("DB.DBA.TTLP_MT(file_to_string_output('/data/sources/demo.ttl'), 'http://example.org/graph/demo', 'http://example.org/graph/demo', 0, 0, 0, 0);"),
                 String::from("checkpoint;"),
-                String::from("ld_dir('/data/sources', 'demo.nq', NULL);"),
-                String::from("rdf_loader_run();"),
+                String::from("DB.DBA.TTLP_MT(file_to_string_output('/data/sources/demo.nt'), 'file:///data/sources/demo.nt', NULL, 0, 0, 0, 0);"),
                 String::from("checkpoint;"),
             ]
         );

@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 pub fn prepare_data(paths: &RuntimePaths) -> Result<InputManifest, String> {
-    prepare_input_manifest(&paths.config_path, &paths.qlever_data_dir)
+    prepare_input_manifest(&paths.config_path, &paths.source_data_dir)
 }
 
 pub fn prepare_qlever(paths: &RuntimePaths, manifest: &InputManifest) -> Result<(), String> {

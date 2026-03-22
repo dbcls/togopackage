@@ -4,7 +4,7 @@ use std::path::PathBuf;
 #[derive(Debug)]
 pub struct RuntimePaths {
     pub config_path: PathBuf,
-    pub qlever_data_dir: PathBuf,
+    pub source_data_dir: PathBuf,
     pub source_manifest_path: PathBuf,
     pub qlever_index_base: String,
     pub virtuoso_data_dir: PathBuf,

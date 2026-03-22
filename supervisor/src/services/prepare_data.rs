@@ -1,12 +1,12 @@
 use crate::config::Config;
 
-use super::{base_env, ServiceCommand, ServiceDashboard, ServiceSpec};
+use super::{base_env, ConfigPath, ServiceCommand, ServiceDashboard, ServiceSpec};
 
 fn env(config: &Config) -> Vec<(&'static str, String)> {
     let mut env = base_env(config);
     env.extend([
         ("QLEVER_INDEX_BASE", config.qlever_index_base.clone()),
-        ("QLEVER_DATA_DIR", config.qlever_data_dir.clone()),
+        ("SOURCE_DATA_DIR", config.source_data_dir.clone()),
         ("SOURCE_MANIFEST_PATH", config.source_manifest_path.clone()),
         ("VIRTUOSO_HTTP_PORT", config.virtuoso_http_port.clone()),
         ("VIRTUOSO_ISQL_PORT", config.virtuoso_isql_port.clone()),
@@ -52,7 +52,7 @@ pub const SPEC: ServiceSpec = ServiceSpec {
     name: "prepare-data",
     setup_command: Some("/usr/local/bin/togopackage-ingest"),
     command: ServiceCommand::SetupOnly,
-    cwd: None,
+    cwd: Some(ConfigPath::DataRoot),
     env,
     readiness_command: None,
     depends_on: &[],

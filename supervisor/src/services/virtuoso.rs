@@ -36,7 +36,7 @@ pub const SPEC: ServiceSpec = ServiceSpec {
 fn env(config: &Config) -> Vec<(&'static str, String)> {
     let mut env = base_env(config);
     env.extend([
-        ("QLEVER_DATA_DIR", config.qlever_data_dir.clone()),
+        ("SOURCE_DATA_DIR", config.source_data_dir.clone()),
         ("SOURCE_MANIFEST_PATH", config.source_manifest_path.clone()),
         ("VIRTUOSO_HTTP_PORT", config.virtuoso_http_port.clone()),
         ("VIRTUOSO_ISQL_PORT", config.virtuoso_isql_port.clone()),

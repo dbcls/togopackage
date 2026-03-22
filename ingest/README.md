@@ -35,8 +35,8 @@ All commands use the same set of CLI options, and every option can also be provi
 | Option | Environment variable | Default |
 | --- | --- | --- |
 | `--config-path` | `TOGOPACKAGE_CONFIG` | `/data/config.yaml` |
-| `--qlever-data-dir` | `QLEVER_DATA_DIR` | `/data/sources` |
-| `--source-manifest-path` | `SOURCE_MANIFEST_PATH` | `${QLEVER_DATA_DIR}/source-manifest.json` |
+| `--source-data-dir` | `SOURCE_DATA_DIR` | `/data/sources` |
+| `--source-manifest-path` | `SOURCE_MANIFEST_PATH` | `${SOURCE_DATA_DIR}/source-manifest.json` |
 | `--qlever-index-base` | `QLEVER_INDEX_BASE` | `/data/qlever/index/default` |
 | `--virtuoso-data-dir` | `VIRTUOSO_DATA_DIR` | `/data/virtuoso` |
 | `--virtuoso-ini-path` | `VIRTUOSO_INI_PATH` | `/tmp/togopackage-virtuoso/virtuoso.ini` |

@@ -13,6 +13,7 @@ const DEFAULT_VIRTUOSO_MAX_CLIENT_CONNECTIONS: u64 = 10;
 
 #[derive(Clone, Copy, Debug)]
 pub enum ConfigPath {
+    DataRoot,
     SparqlProxy,
     Sparqlist,
     Grasp,
@@ -101,7 +102,7 @@ pub struct Config {
     pub qlever_access_token: Option<String>,
     pub qlever_memory_for_queries: Option<String>,
     pub qlever_index_base: String,
-    pub qlever_data_dir: String,
+    pub source_data_dir: String,
     pub source_manifest_path: String,
     pub qlever_port: String,
     pub qlever_timeout: Option<String>,
@@ -171,7 +172,7 @@ impl Config {
                     .unwrap_or_else(|| String::from(DEFAULT_QLEVER_MEMORY_FOR_QUERIES)),
             ),
             qlever_index_base: String::from("/data/qlever/index/default"),
-            qlever_data_dir: String::from("/data/sources"),
+            source_data_dir: String::from("/data/sources"),
             source_manifest_path: String::from("/data/sources/source-manifest.json"),
             qlever_port: qlever_port.clone(),
             qlever_timeout: runtime_config.qlever.server.timeout,
@@ -287,6 +288,7 @@ impl Config {
 
     pub fn resolve_path(&self, key: ConfigPath) -> &str {
         match key {
+            ConfigPath::DataRoot => "/data",
             ConfigPath::SparqlProxy => &self.sparql_proxy_dir,
             ConfigPath::Sparqlist => &self.sparqlist_dir,
             ConfigPath::Grasp => &self.grasp_dir,
