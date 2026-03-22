@@ -2,11 +2,13 @@ use crate::model::{InputManifest, ManifestSource, RuntimePaths, VirtuosoTuning};
 use crate::state::{ensure_current_generated_state, log_up_to_date, read_stamp, write_stamp};
 use std::fs::{self, File};
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
 use std::thread::sleep;
 use std::time::Duration;
 use tempfile::NamedTempFile;
+
+const DEFAULT_GRAPH_IRI: &str = "urn:togopackage:default-graph";
 
 pub fn prepare_virtuoso(paths: &RuntimePaths, manifest: &InputManifest) -> Result<(), String> {
     let db_dir = paths.virtuoso_data_dir.join("db");
@@ -137,6 +139,7 @@ DefaultClientCharset = UTF-8
 ResultSetMaxRows = 10000
 MaxQueryCostEstimationTime = 400
 MaxQueryExecutionTime = 60
+DefaultGraph = {default_graph}
 ",
         db_dir = db_dir.display(),
         data_dir = data_dir.display(),
@@ -150,6 +153,7 @@ MaxQueryExecutionTime = 60
         max_query_mem = tuning.max_query_mem,
         server_threads = tuning.server_threads,
         max_client_connections = tuning.max_client_connections,
+        default_graph = DEFAULT_GRAPH_IRI,
     )
 }
 
@@ -313,37 +317,42 @@ pub fn load_sql_lines(manifest: &InputManifest) -> Result<Vec<String>, String> {
     for source in &manifest.sources {
         push_load_sql_lines(&mut lines, source)?;
     }
+    lines.push(String::from("rdf_loader_run();"));
+    lines.push(String::from("checkpoint;"));
     Ok(lines)
 }
 
 fn push_load_sql_lines(lines: &mut Vec<String>, source: &ManifestSource) -> Result<(), String> {
-    let base_iri = ttl_base_iri(&source.path, source.graph.as_deref());
-    let graph = sql_string(source.graph.as_deref());
+    let (directory, file_name) = split_source_path(&source.path)?;
     match source.format.as_str() {
-        "ttl" | "nt" => lines.push(format!(
-            "DB.DBA.TTLP_MT(file_to_string_output({}), {}, {}, 0, 0, 0, 0);",
-            sql_string(Some(&source.path)),
-            sql_string(Some(&base_iri)),
-            graph
-        )),
-        "nq" => lines.push(format!(
-            "DB.DBA.TTLP_MT(file_to_string_output({}), {}, {}, 512, 0, 0, 0);",
-            sql_string(Some(&source.path)),
-            sql_string(Some(&base_iri)),
-            graph
+        "ttl" | "nt" | "nq" => lines.push(format!(
+            "ld_dir({}, {}, {});",
+            sql_string(Some(&directory)),
+            sql_string(Some(&file_name)),
+            sql_string(Some(&target_graph_iri(source)))
         )),
         other => return Err(format!("Unsupported format in source manifest: {other}")),
     }
-    lines.push(String::from("checkpoint;"));
     Ok(())
 }
 
-fn ttl_base_iri(path: &str, graph: Option<&str>) -> String {
-    graph.map(str::to_owned).unwrap_or_else(|| file_iri(path))
+fn target_graph_iri(source: &ManifestSource) -> String {
+    source
+        .graph
+        .clone()
+        .unwrap_or_else(|| String::from(DEFAULT_GRAPH_IRI))
 }
 
-fn file_iri(path: &str) -> String {
-    format!("file://{path}")
+fn split_source_path(path: &str) -> Result<(String, String), String> {
+    let path = PathBuf::from(path);
+    let directory = path.parent().ok_or_else(|| {
+        format!("failed to determine parent directory for Virtuoso source {path:?}")
+    })?;
+    let file_name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| format!("failed to determine file name for Virtuoso source {path:?}"))?;
+    Ok((directory.display().to_string(), String::from(file_name)))
 }
 
 fn sql_string(value: Option<&str>) -> String {
@@ -383,16 +392,16 @@ mod tests {
         assert_eq!(
             lines,
             vec![
-                String::from("DB.DBA.TTLP_MT(file_to_string_output('/data/sources/demo.ttl'), 'http://example.org/graph/demo', 'http://example.org/graph/demo', 0, 0, 0, 0);"),
-                String::from("checkpoint;"),
-                String::from("DB.DBA.TTLP_MT(file_to_string_output('/data/sources/demo.nt'), 'file:///data/sources/demo.nt', NULL, 0, 0, 0, 0);"),
+                String::from("ld_dir('/data/sources', 'demo.ttl', 'http://example.org/graph/demo');"),
+                String::from("ld_dir('/data/sources', 'demo.nt', 'urn:togopackage:default-graph');"),
+                String::from("rdf_loader_run();"),
                 String::from("checkpoint;"),
             ]
         );
     }
 
     #[test]
-    fn load_sql_lines_uses_file_iri_for_default_graph_ttl() {
+    fn load_sql_lines_uses_default_graph_for_ungraphed_sources() {
         let manifest = InputManifest {
             sources: vec![ManifestSource {
                 path: String::from("/data/sources/demo.ttl"),
@@ -408,7 +417,8 @@ mod tests {
         assert_eq!(
             lines,
             vec![
-                String::from("DB.DBA.TTLP_MT(file_to_string_output('/data/sources/demo.ttl'), 'file:///data/sources/demo.ttl', NULL, 0, 0, 0, 0);"),
+                String::from("ld_dir('/data/sources', 'demo.ttl', 'urn:togopackage:default-graph');"),
+                String::from("rdf_loader_run();"),
                 String::from("checkpoint;"),
             ]
         );

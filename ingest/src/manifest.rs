@@ -93,7 +93,7 @@ fn prepare_input_specs(
             (Some(url), None) => {
                 let target = remote_download_target(url, idx, data_dir);
                 download(url, &target)?;
-                let input_file = maybe_decompress(&target)?;
+                let input_file = canonicalize_source_path(maybe_decompress(&target)?, &data_format)?;
                 specs.push(InputSpec {
                     path: input_file,
                     graph: source.graph.clone(),
@@ -116,7 +116,8 @@ fn prepare_input_specs(
                             target.display()
                         )
                     })?;
-                    let input_file = maybe_decompress(&target)?;
+                    let input_file =
+                        canonicalize_source_path(maybe_decompress(&target)?, &data_format)?;
                     specs.push(InputSpec {
                         path: input_file,
                         graph: source.graph.clone(),
@@ -208,6 +209,33 @@ fn local_copy_target(source_path: &Path, idx: usize, match_idx: usize, data_dir:
         })
         .unwrap_or_default();
     data_dir.join(format!("source_{idx}_{match_idx}{suffix}"))
+}
+
+fn canonicalize_source_path(path: PathBuf, data_format: &str) -> Result<PathBuf, String> {
+    if path.extension().and_then(OsStr::to_str) == Some(data_format) {
+        return Ok(path);
+    }
+
+    let canonical_path = path.with_extension(data_format);
+    if canonical_path == path {
+        return Ok(path);
+    }
+    if canonical_path.exists() {
+        fs::remove_file(&canonical_path).map_err(|error| {
+            format!(
+                "failed to remove existing canonical source {}: {error}",
+                canonical_path.display()
+            )
+        })?;
+    }
+    fs::rename(&path, &canonical_path).map_err(|error| {
+        format!(
+            "failed to rename source {} to {}: {error}",
+            path.display(),
+            canonical_path.display()
+        )
+    })?;
+    Ok(canonical_path)
 }
 
 fn manifest_signature(manifest: &InputManifest) -> Result<String, String> {
