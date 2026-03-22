@@ -124,6 +124,16 @@ qlever:
     CACHE_MAX_SIZE: 2G
     CACHE_MAX_SIZE_SINGLE_ENTRY: 1G
     CACHE_MAX_NUM_ENTRIES: "200"
+virtuoso:
+  server:
+    DBA_PASSWORD: dba
+    NUMBER_OF_BUFFERS: "3000000"
+    MAX_DIRTY_BUFFERS: "2250000"
+    MAX_CHECKPOINT_REMAP: "2000"
+    CHECKPOINT_INTERVAL: "60"
+    MAX_QUERY_MEM: 4G
+    SERVER_THREADS: "10"
+    MAX_CLIENT_CONNECTIONS: "10"
 
 source:
   - name: Example RDF source
@@ -166,6 +176,17 @@ Rules:
 - `qlever.server.CACHE_MAX_SIZE_SINGLE_ENTRY` is optional. If omitted, TogoPackage does not pass `--cache-max-size-single-entry`
 - `qlever.server.CACHE_MAX_NUM_ENTRIES` is optional. If omitted, TogoPackage does not pass `--cache-max-num-entries`
 - `qlever.server.PERSIST_UPDATES` is optional. Only `true` adds `--persist-updates`
+- `virtuoso` is optional
+- `virtuoso.server` is optional
+- `virtuoso.server.DBA_PASSWORD` is optional. Default: `dba`
+- `virtuoso.server.NUMBER_OF_BUFFERS` is optional. Default: `170000`
+- `virtuoso.server.MAX_DIRTY_BUFFERS` is optional. Default: `130000`
+- `virtuoso.server.MAX_CHECKPOINT_REMAP` is optional. Default: `500`
+- `virtuoso.server.CHECKPOINT_INTERVAL` is optional. Default: `120`
+- `virtuoso.server.MAX_QUERY_MEM` is optional. Default: `512M`
+- `virtuoso.server.SERVER_THREADS` is optional. Default: `4`
+- `virtuoso.server.MAX_CLIENT_CONNECTIONS` is optional. Default: `8`
+- Virtuoso ports and data paths cannot be changed from `config.yaml` because they are tied to other runtime services and exposed port assumptions
 - `format` can be specified for each `source`
 - `source.format` is optional. Default: `ttl`
 - Supported formats: `nt`, `ttl`, `nq`

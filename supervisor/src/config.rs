@@ -24,6 +24,8 @@ struct RuntimeConfigFile {
     sparql_backend: Option<String>,
     #[serde(default)]
     qlever: QleverConfigFile,
+    #[serde(default)]
+    virtuoso: VirtuosoConfigFile,
     #[serde(default, rename = "source")]
     _source: Option<Value>,
 }
@@ -33,6 +35,13 @@ struct RuntimeConfigFile {
 struct QleverConfigFile {
     #[serde(default)]
     server: QleverServerConfigFile,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct VirtuosoConfigFile {
+    #[serde(default)]
+    server: VirtuosoServerConfigFile,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -52,6 +61,27 @@ struct QleverServerConfigFile {
     cache_max_num_entries: Option<String>,
     #[serde(default, rename = "PERSIST_UPDATES")]
     persist_updates: Option<bool>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct VirtuosoServerConfigFile {
+    #[serde(default, rename = "DBA_PASSWORD")]
+    dba_password: Option<String>,
+    #[serde(default, rename = "NUMBER_OF_BUFFERS")]
+    number_of_buffers: Option<String>,
+    #[serde(default, rename = "MAX_DIRTY_BUFFERS")]
+    max_dirty_buffers: Option<String>,
+    #[serde(default, rename = "MAX_CHECKPOINT_REMAP")]
+    max_checkpoint_remap: Option<String>,
+    #[serde(default, rename = "CHECKPOINT_INTERVAL")]
+    checkpoint_interval: Option<String>,
+    #[serde(default, rename = "MAX_QUERY_MEM")]
+    max_query_mem: Option<String>,
+    #[serde(default, rename = "SERVER_THREADS")]
+    server_threads: Option<String>,
+    #[serde(default, rename = "MAX_CLIENT_CONNECTIONS")]
+    max_client_connections: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -93,6 +123,13 @@ pub struct Config {
     pub virtuoso_data_dir: String,
     pub virtuoso_ini_path: String,
     pub virtuoso_dba_password: String,
+    pub virtuoso_number_of_buffers: String,
+    pub virtuoso_max_dirty_buffers: String,
+    pub virtuoso_max_checkpoint_remap: String,
+    pub virtuoso_checkpoint_interval: String,
+    pub virtuoso_max_query_mem: String,
+    pub virtuoso_server_threads: String,
+    pub virtuoso_max_client_connections: String,
     pub tabulae_queries_dir: String,
     pub tabulae_dist_dir: String,
     pub sparql_backend: SparqlBackend,
@@ -161,7 +198,46 @@ impl Config {
             virtuoso_isql_port: String::from("1111"),
             virtuoso_data_dir: virtuoso_data_dir.clone(),
             virtuoso_ini_path: format!("{virtuoso_data_dir}/virtuoso.ini"),
-            virtuoso_dba_password: String::from("dba"),
+            virtuoso_dba_password: runtime_config
+                .virtuoso
+                .server
+                .dba_password
+                .unwrap_or_else(|| String::from("dba")),
+            virtuoso_number_of_buffers: runtime_config
+                .virtuoso
+                .server
+                .number_of_buffers
+                .unwrap_or_else(|| String::from("3000000")),
+            virtuoso_max_dirty_buffers: runtime_config
+                .virtuoso
+                .server
+                .max_dirty_buffers
+                .unwrap_or_else(|| String::from("2250000")),
+            virtuoso_max_checkpoint_remap: runtime_config
+                .virtuoso
+                .server
+                .max_checkpoint_remap
+                .unwrap_or_else(|| String::from("2000")),
+            virtuoso_checkpoint_interval: runtime_config
+                .virtuoso
+                .server
+                .checkpoint_interval
+                .unwrap_or_else(|| String::from("60")),
+            virtuoso_max_query_mem: runtime_config
+                .virtuoso
+                .server
+                .max_query_mem
+                .unwrap_or_else(|| String::from("4G")),
+            virtuoso_server_threads: runtime_config
+                .virtuoso
+                .server
+                .server_threads
+                .unwrap_or_else(|| String::from("10")),
+            virtuoso_max_client_connections: runtime_config
+                .virtuoso
+                .server
+                .max_client_connections
+                .unwrap_or_else(|| String::from("10")),
 
             tabulae_queries_dir: String::from("/data/tabulae/queries"),
             tabulae_dist_dir: String::from("/data/tabulae/dist"),
@@ -311,6 +387,40 @@ mod tests {
     }
 
     #[test]
+    fn reads_virtuoso_server_settings_from_config_yaml() {
+        let path = temp_config_path("togopackage-config");
+        fs::write(
+            &path,
+            concat!(
+                "source: []\n",
+                "virtuoso:\n",
+                "  server:\n",
+                "    DBA_PASSWORD: secret-dba\n",
+                "    NUMBER_OF_BUFFERS: \"123\"\n",
+                "    MAX_DIRTY_BUFFERS: \"45\"\n",
+                "    MAX_CHECKPOINT_REMAP: \"67\"\n",
+                "    CHECKPOINT_INTERVAL: \"89\"\n",
+                "    MAX_QUERY_MEM: 6G\n",
+                "    SERVER_THREADS: \"12\"\n",
+                "    MAX_CLIENT_CONNECTIONS: \"34\"\n",
+            ),
+        )
+        .expect("write config");
+
+        let config = Config::from_config_path(&path).expect("config should parse");
+
+        fs::remove_file(&path).expect("remove config");
+        assert_eq!(config.virtuoso_dba_password, "secret-dba");
+        assert_eq!(config.virtuoso_number_of_buffers, "123");
+        assert_eq!(config.virtuoso_max_dirty_buffers, "45");
+        assert_eq!(config.virtuoso_max_checkpoint_remap, "67");
+        assert_eq!(config.virtuoso_checkpoint_interval, "89");
+        assert_eq!(config.virtuoso_max_query_mem, "6G");
+        assert_eq!(config.virtuoso_server_threads, "12");
+        assert_eq!(config.virtuoso_max_client_connections, "34");
+    }
+
+    #[test]
     fn qlever_server_settings_fall_back_to_defaults() {
         let path = temp_config_path("togopackage-config");
         fs::write(&path, "source: []\n").expect("write config");
@@ -326,5 +436,23 @@ mod tests {
         assert_eq!(config.qlever_cache_max_size_single_entry, None);
         assert_eq!(config.qlever_cache_max_num_entries, None);
         assert!(!config.qlever_persist_updates);
+    }
+
+    #[test]
+    fn virtuoso_server_settings_fall_back_to_defaults() {
+        let path = temp_config_path("togopackage-config");
+        fs::write(&path, "source: []\n").expect("write config");
+
+        let config = Config::from_config_path(&path).expect("config should parse");
+
+        fs::remove_file(&path).expect("remove config");
+        assert_eq!(config.virtuoso_dba_password, "dba");
+        assert_eq!(config.virtuoso_number_of_buffers, "3000000");
+        assert_eq!(config.virtuoso_max_dirty_buffers, "2250000");
+        assert_eq!(config.virtuoso_max_checkpoint_remap, "2000");
+        assert_eq!(config.virtuoso_checkpoint_interval, "60");
+        assert_eq!(config.virtuoso_max_query_mem, "4G");
+        assert_eq!(config.virtuoso_server_threads, "10");
+        assert_eq!(config.virtuoso_max_client_connections, "10");
     }
 }

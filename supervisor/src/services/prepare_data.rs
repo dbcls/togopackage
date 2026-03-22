@@ -16,6 +16,34 @@ fn env(config: &Config) -> Vec<(&'static str, String)> {
             "VIRTUOSO_DBA_PASSWORD",
             config.virtuoso_dba_password.clone(),
         ),
+        (
+            "VIRTUOSO_NUMBER_OF_BUFFERS",
+            config.virtuoso_number_of_buffers.clone(),
+        ),
+        (
+            "VIRTUOSO_MAX_DIRTY_BUFFERS",
+            config.virtuoso_max_dirty_buffers.clone(),
+        ),
+        (
+            "VIRTUOSO_MAX_CHECKPOINT_REMAP",
+            config.virtuoso_max_checkpoint_remap.clone(),
+        ),
+        (
+            "VIRTUOSO_CHECKPOINT_INTERVAL",
+            config.virtuoso_checkpoint_interval.clone(),
+        ),
+        (
+            "VIRTUOSO_MAX_QUERY_MEM",
+            config.virtuoso_max_query_mem.clone(),
+        ),
+        (
+            "VIRTUOSO_SERVER_THREADS",
+            config.virtuoso_server_threads.clone(),
+        ),
+        (
+            "VIRTUOSO_MAX_CLIENT_CONNECTIONS",
+            config.virtuoso_max_client_connections.clone(),
+        ),
     ]);
     env
 }

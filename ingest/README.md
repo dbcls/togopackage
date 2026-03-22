@@ -43,6 +43,16 @@ All commands use the same set of CLI options, and every option can also be provi
 | `--virtuoso-http-port` | `VIRTUOSO_HTTP_PORT` | `8890` |
 | `--virtuoso-isql-port` | `VIRTUOSO_ISQL_PORT` | `1111` |
 | `--virtuoso-dba-password` | `VIRTUOSO_DBA_PASSWORD` | `dba` |
+| `--virtuoso-number-of-buffers` | `VIRTUOSO_NUMBER_OF_BUFFERS` | `3000000` |
+| `--virtuoso-max-dirty-buffers` | `VIRTUOSO_MAX_DIRTY_BUFFERS` | `2250000` |
+| `--virtuoso-max-checkpoint-remap` | `VIRTUOSO_MAX_CHECKPOINT_REMAP` | `2000` |
+| `--virtuoso-checkpoint-interval` | `VIRTUOSO_CHECKPOINT_INTERVAL` | `60` |
+| `--virtuoso-max-query-mem` | `VIRTUOSO_MAX_QUERY_MEM` | `4G` |
+| `--virtuoso-server-threads` | `VIRTUOSO_SERVER_THREADS` | `10` |
+| `--virtuoso-max-client-connections` | `VIRTUOSO_MAX_CLIENT_CONNECTIONS` | `10` |
+
+When `togopackage-ingest` is run through `supervisor`, these Virtuoso tuning values are normally sourced from `/data/config.yaml` under `virtuoso.server`.
+Port and path variables still exist for the CLI, but TogoPackage intentionally keeps them fixed at the runtime level because other services and published container ports depend on them.
 
 ## Files Produced by the Setup Flow
 

@@ -1,4 +1,4 @@
-use crate::model::{InputManifest, ManifestSource, RuntimePaths};
+use crate::model::{InputManifest, ManifestSource, RuntimePaths, VirtuosoTuning};
 use crate::state::{ensure_current_generated_state, log_up_to_date, read_stamp, write_stamp};
 use std::ffi::OsStr;
 use std::fs::{self, File};
@@ -26,6 +26,7 @@ pub fn prepare_virtuoso(paths: &RuntimePaths, manifest: &InputManifest) -> Resul
         &paths.qlever_data_dir,
         &paths.virtuoso_http_port,
         &paths.virtuoso_isql_port,
+        &paths.virtuoso_tuning,
     )?;
 
     ensure_current_generated_state(
@@ -58,8 +59,10 @@ fn ensure_virtuoso_config(
     source_dir: &Path,
     http_port: &str,
     isql_port: &str,
+    tuning: &VirtuosoTuning,
 ) -> Result<(), String> {
-    let generated = virtuoso_config_text(db_dir, data_dir, source_dir, http_port, isql_port);
+    let generated =
+        virtuoso_config_text(db_dir, data_dir, source_dir, http_port, isql_port, tuning);
     let previous = fs::read_to_string(config_path).ok();
     if let Some(parent) = config_path.parent() {
         fs::create_dir_all(parent)
@@ -83,6 +86,7 @@ fn virtuoso_config_text(
     source_dir: &Path,
     http_port: &str,
     isql_port: &str,
+    tuning: &VirtuosoTuning,
 ) -> String {
     format!(
         "[Database]
@@ -92,24 +96,24 @@ ErrorLogFile = /proc/self/fd/2
 LockFile = {db_dir}/virtuoso.lck
 xa_persistent_file = {db_dir}/virtuoso.pxa
 FileExtend = 200
-MaxCheckpointRemap = 2000
+MaxCheckpointRemap = {max_checkpoint_remap}
 Striping = 0
 
 [TempDatabase]
 DatabaseFile = {db_dir}/virtuoso-temp.db
 TransactionFile = {db_dir}/virtuoso-temp.trx
-MaxCheckpointRemap = 2000
+MaxCheckpointRemap = {max_checkpoint_remap}
 Striping = 0
 
 [Parameters]
 ServerPort = {isql_port}
 LiteMode = 0
 DisableUnixSocket = 1
-NumberOfBuffers = 3000000
-MaxDirtyBuffers = 2250000
+NumberOfBuffers = {number_of_buffers}
+MaxDirtyBuffers = {max_dirty_buffers}
 TransactionAfterImageLimit = 5000000000
-MaxCheckpointRemap = 2000
-CheckpointInterval = 60
+MaxCheckpointRemap = {max_checkpoint_remap}
+CheckpointInterval = {checkpoint_interval}
 O_DIRECT = 0
 CaseMode = 2
 SchedulerInterval = 10
@@ -118,13 +122,13 @@ PrefixResultNames = 0
 RdfFreeTextRulesSize = 100
 IndexTreeMaps = 64
 MaxStaticCursorRows = 5000
-MaxQueryMem = 4G
+MaxQueryMem = {max_query_mem}
 DefaultHost = localhost:{http_port}
 
 [HTTPServer]
 ServerPort = {http_port}
-ServerThreads = 10
-MaxClientConnections = 10
+ServerThreads = {server_threads}
+MaxClientConnections = {max_client_connections}
 EnabledDavVSP = 0
 HTTPEnable = 1
 MaintenancePage = atomic.html
@@ -139,7 +143,14 @@ MaxQueryExecutionTime = 60
         data_dir = data_dir.display(),
         source_dir = source_dir.display(),
         http_port = http_port,
-        isql_port = isql_port
+        isql_port = isql_port,
+        number_of_buffers = tuning.number_of_buffers,
+        max_dirty_buffers = tuning.max_dirty_buffers,
+        max_checkpoint_remap = tuning.max_checkpoint_remap,
+        checkpoint_interval = tuning.checkpoint_interval,
+        max_query_mem = tuning.max_query_mem,
+        server_threads = tuning.server_threads,
+        max_client_connections = tuning.max_client_connections,
     )
 }
 

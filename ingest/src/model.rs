@@ -12,6 +12,18 @@ pub struct RuntimePaths {
     pub virtuoso_http_port: String,
     pub virtuoso_isql_port: String,
     pub virtuoso_dba_password: String,
+    pub virtuoso_tuning: VirtuosoTuning,
+}
+
+#[derive(Debug)]
+pub struct VirtuosoTuning {
+    pub number_of_buffers: String,
+    pub max_dirty_buffers: String,
+    pub max_checkpoint_remap: String,
+    pub checkpoint_interval: String,
+    pub max_query_mem: String,
+    pub server_threads: String,
+    pub max_client_connections: String,
 }
 
 #[derive(Debug, Deserialize)]

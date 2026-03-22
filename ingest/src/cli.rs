@@ -1,7 +1,7 @@
 use clap::{Args, Parser};
 use std::path::PathBuf;
 
-use crate::model::RuntimePaths;
+use crate::model::{RuntimePaths, VirtuosoTuning};
 
 #[derive(Debug, Parser)]
 #[command(name = "togopackage-ingest")]
@@ -34,6 +34,20 @@ pub struct CommonArgs {
     pub virtuoso_isql_port: String,
     #[arg(long, env = "VIRTUOSO_DBA_PASSWORD", default_value = "dba")]
     pub virtuoso_dba_password: String,
+    #[arg(long, env = "VIRTUOSO_NUMBER_OF_BUFFERS", default_value = "3000000")]
+    pub virtuoso_number_of_buffers: String,
+    #[arg(long, env = "VIRTUOSO_MAX_DIRTY_BUFFERS", default_value = "2250000")]
+    pub virtuoso_max_dirty_buffers: String,
+    #[arg(long, env = "VIRTUOSO_MAX_CHECKPOINT_REMAP", default_value = "2000")]
+    pub virtuoso_max_checkpoint_remap: String,
+    #[arg(long, env = "VIRTUOSO_CHECKPOINT_INTERVAL", default_value = "60")]
+    pub virtuoso_checkpoint_interval: String,
+    #[arg(long, env = "VIRTUOSO_MAX_QUERY_MEM", default_value = "4G")]
+    pub virtuoso_max_query_mem: String,
+    #[arg(long, env = "VIRTUOSO_SERVER_THREADS", default_value = "10")]
+    pub virtuoso_server_threads: String,
+    #[arg(long, env = "VIRTUOSO_MAX_CLIENT_CONNECTIONS", default_value = "10")]
+    pub virtuoso_max_client_connections: String,
 }
 
 impl From<CommonArgs> for RuntimePaths {
@@ -55,6 +69,15 @@ impl From<CommonArgs> for RuntimePaths {
             virtuoso_http_port: args.virtuoso_http_port,
             virtuoso_isql_port: args.virtuoso_isql_port,
             virtuoso_dba_password: args.virtuoso_dba_password,
+            virtuoso_tuning: VirtuosoTuning {
+                number_of_buffers: args.virtuoso_number_of_buffers,
+                max_dirty_buffers: args.virtuoso_max_dirty_buffers,
+                max_checkpoint_remap: args.virtuoso_max_checkpoint_remap,
+                checkpoint_interval: args.virtuoso_checkpoint_interval,
+                max_query_mem: args.virtuoso_max_query_mem,
+                server_threads: args.virtuoso_server_threads,
+                max_client_connections: args.virtuoso_max_client_connections,
+            },
         }
     }
 }
