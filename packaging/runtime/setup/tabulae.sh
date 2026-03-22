@@ -19,28 +19,6 @@ log_tabulae() {
   printf '%s\n' "${message}" >&2
 }
 
-wait_for_sparql_endpoint() {
-  local endpoint="$1"
-  local attempt
-  local response_file
-  response_file="$(mktemp)"
-  trap 'rm -f "${response_file}"' RETURN
-
-  for attempt in $(seq 1 60); do
-    if curl -fsS -o "${response_file}" \
-      --get \
-      --data-urlencode 'query=ASK {}' \
-      --data-urlencode 'format=application/sparql-results+json' \
-      "${endpoint}"; then
-      return 0
-    fi
-    sleep 1
-  done
-
-  log_tabulae "Timed out waiting for SPARQL endpoint: ${endpoint}"
-  return 1
-}
-
 has_tabulae_queries() {
   find "${TABULAE_QUERIES_DIR}" -type f \( -name '*.rq' -o -name '*.sql' \) -print -quit 2>/dev/null | grep -q .
 }
@@ -76,8 +54,6 @@ fi
 
 # Only build tabulae assets when queries exist; otherwise Caddy would crash-loop.
 if has_tabulae_queries; then
-  log_tabulae "Waiting for SPARQL endpoint: ${TABULAE_SPARQL_ENDPOINT}"
-  wait_for_sparql_endpoint "${TABULAE_SPARQL_ENDPOINT}"
   log_tabulae "Tabulae build started."
   if tabulae --queries-dir "${TABULAE_QUERIES_DIR}" --dist-dir "${TABULAE_DIST_DIR}" build; then
     log_tabulae "Tabulae build completed successfully."

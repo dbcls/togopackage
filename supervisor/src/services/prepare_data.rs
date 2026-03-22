@@ -1,26 +1,11 @@
 use crate::config::Config;
 
-use super::{base_env, ConfigPath, ServiceCommand, ServiceDashboard, ServiceSpec};
-
-pub const SPEC: ServiceSpec = ServiceSpec {
-    name: "virtuoso",
-    setup_command: None,
-    command: ServiceCommand::Run("exec /togo/runtime/run/virtuoso.sh"),
-    cwd: Some(ConfigPath::VirtuosoData),
-    env,
-    depends_on: &["prepare-data"],
-    dashboard: ServiceDashboard {
-        title: "Virtuoso",
-        description: "SPARQL backend",
-        href: None,
-        endpoints: &[],
-        show: true,
-    },
-};
+use super::{base_env, ServiceCommand, ServiceDashboard, ServiceSpec};
 
 fn env(config: &Config) -> Vec<(&'static str, String)> {
     let mut env = base_env(config);
     env.extend([
+        ("QLEVER_INDEX_BASE", config.qlever_index_base.clone()),
         ("QLEVER_DATA_DIR", config.qlever_data_dir.clone()),
         ("SOURCE_MANIFEST_PATH", config.source_manifest_path.clone()),
         ("VIRTUOSO_HTTP_PORT", config.virtuoso_http_port.clone()),
@@ -31,10 +16,22 @@ fn env(config: &Config) -> Vec<(&'static str, String)> {
             "VIRTUOSO_LOAD_SQL_PATH",
             config.virtuoso_load_sql_path.clone(),
         ),
-        (
-            "VIRTUOSO_DBA_PASSWORD",
-            config.virtuoso_dba_password.clone(),
-        ),
     ]);
     env
 }
+
+pub const SPEC: ServiceSpec = ServiceSpec {
+    name: "prepare-data",
+    setup_command: Some("/usr/local/bin/togopackage-ingest prepare-data"),
+    command: ServiceCommand::SetupOnly,
+    cwd: None,
+    env,
+    depends_on: &[],
+    dashboard: ServiceDashboard {
+        title: "Prepare Data",
+        description: "Prepare shared runtime data",
+        href: None,
+        endpoints: &[],
+        show: false,
+    },
+};

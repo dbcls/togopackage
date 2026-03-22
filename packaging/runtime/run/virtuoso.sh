@@ -23,17 +23,6 @@ log_virtuoso() {
   printf '%s\n' "${message}" >&2
 }
 
-current_input_hash() {
-  python3 - "${SOURCE_MANIFEST_PATH}" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-print(manifest["input_hash"])
-PY
-}
-
 write_input_stamp() {
   local stamp_path="$1"
   local input_hash="$2"
@@ -64,15 +53,14 @@ wait_for_virtuoso_http() {
 load_sources_if_needed() {
   local input_hash
   local load_output
-  input_hash="$(current_input_hash)"
+  input_hash="$(/usr/local/bin/togopackage-ingest generate-virtuoso-load-sql)"
   if [ -f "${VIRTUOSO_LOAD_STAMP}" ] && [ "$(cat "${VIRTUOSO_LOAD_STAMP}")" = "${input_hash}" ]; then
     skip_input_state "Virtuoso"
     return 0
   fi
 
-  python3 /togo/runtime/support/generate_virtuoso_load_sql.py
   log_virtuoso "Virtuoso data import started."
-  if load_output="$(python3 /togo/runtime/support/with_database_build_lock.py Virtuoso bash -lc "isql-vt \"127.0.0.1:${VIRTUOSO_ISQL_PORT}\" dba \"${VIRTUOSO_DBA_PASSWORD}\" VERBOSE=OFF PROMPT=OFF <\"${VIRTUOSO_LOAD_SQL_PATH}\"" 2>&1)"; then
+  if load_output="$(bash -lc "isql-vt \"127.0.0.1:${VIRTUOSO_ISQL_PORT}\" dba \"${VIRTUOSO_DBA_PASSWORD}\" VERBOSE=OFF PROMPT=OFF <\"${VIRTUOSO_LOAD_SQL_PATH}\"" 2>&1)"; then
     printf '%s\n' "${load_output}" >&2
     if printf '%s\n' "${load_output}" | grep -q '^\*\*\* Error'; then
       log_virtuoso "Virtuoso data import failed."

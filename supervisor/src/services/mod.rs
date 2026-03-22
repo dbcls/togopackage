@@ -1,5 +1,6 @@
 mod caddy;
 mod grasp;
+mod prepare_data;
 mod qlever;
 mod sparql_proxy;
 mod sparqlist;
@@ -7,16 +8,7 @@ mod tabulae;
 mod togomcp;
 mod virtuoso;
 
-use crate::config::Config;
-
-#[derive(Clone, Copy, Debug)]
-pub enum ConfigPath {
-    SparqlProxy,
-    Sparqlist,
-    Grasp,
-    Togomcp,
-    VirtuosoData,
-}
+use crate::config::{Config, ConfigPath};
 
 #[derive(Clone, Copy, Debug)]
 pub struct ServiceEndpoint {
@@ -40,6 +32,7 @@ pub struct ServiceSpec {
     pub command: ServiceCommand,
     pub cwd: Option<ConfigPath>,
     pub env: fn(&Config) -> Vec<(&'static str, String)>,
+    pub depends_on: &'static [&'static str],
     pub dashboard: ServiceDashboard,
 }
 
@@ -51,6 +44,7 @@ pub enum ServiceCommand {
 }
 
 pub const SERVICES: &[ServiceSpec] = &[
+    prepare_data::SPEC,
     qlever::SPEC,
     caddy::SPEC,
     sparql_proxy::SPEC,

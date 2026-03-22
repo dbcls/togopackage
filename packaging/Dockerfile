@@ -17,6 +17,12 @@ COPY supervisor/Cargo.lock ./
 COPY supervisor/src ./src
 RUN cargo build --release
 
+FROM docker.io/library/rust:1.94-bullseye AS ingest-build
+WORKDIR /ingest
+COPY ingest/Cargo.toml ./
+COPY ingest/src ./src
+RUN cargo build --release
+
 # Use prebuilt binaries to avoid building from source.
 FROM base AS runtime
 WORKDIR /qlever
@@ -84,6 +90,7 @@ RUN install -d -m 0755 -o togo -g togo /togo/defaults
 COPY --chown=togo:togo packaging/defaults /togo/defaults
 COPY --from=tabulae-prebuilt /usr/local/bin/tabulae /usr/local/bin/tabulae
 COPY --from=supervisor-build /supervisor/target/release/togopackage-supervisor /usr/local/bin/togopackage-supervisor
+COPY --from=ingest-build /ingest/target/release/togopackage-ingest /usr/local/bin/togopackage-ingest
 
 # Install sparql-proxy.
 RUN cd /vendor/sparql-proxy && npm ci && npm run build

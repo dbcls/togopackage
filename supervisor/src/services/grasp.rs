@@ -30,6 +30,7 @@ pub const SPEC: ServiceSpec = ServiceSpec {
     command: ServiceCommand::Run("exec tsx main.ts"),
     cwd: Some(ConfigPath::Grasp),
     env,
+    depends_on: &["sparql-proxy"],
     dashboard: ServiceDashboard {
         title: "Grasp",
         description: "GraphQL service for RDF resources",

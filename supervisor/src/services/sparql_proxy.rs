@@ -28,6 +28,7 @@ pub const SPEC: ServiceSpec = ServiceSpec {
     command: ServiceCommand::Run("exec npm start"),
     cwd: Some(ConfigPath::SparqlProxy),
     env,
+    depends_on: &["qlever", "virtuoso"],
     dashboard: ServiceDashboard {
         title: "SPARQL Proxy",
         description: "SPARQL endpoint and admin interface",

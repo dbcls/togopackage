@@ -1,7 +1,15 @@
-use crate::services::ConfigPath;
 use serde::Deserialize;
 use serde_yaml::Value;
 use std::fs;
+
+#[derive(Clone, Copy, Debug)]
+pub enum ConfigPath {
+    SparqlProxy,
+    Sparqlist,
+    Grasp,
+    Togomcp,
+    VirtuosoData,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SparqlBackend {

@@ -37,6 +37,8 @@ struct ManagedService {
     started_at: Option<Instant>,
     restart_count: u32,
     next_restart_at: Option<Instant>,
+    ever_started: bool,
+    completed_successfully: bool,
 }
 
 unsafe extern "C" {
@@ -114,6 +116,8 @@ fn spawn_service(
         started_at: Some(Instant::now()),
         restart_count,
         next_restart_at: None,
+        ever_started: true,
+        completed_successfully: false,
     })
 }
 
@@ -247,6 +251,109 @@ fn schedule_restart(service: &mut ManagedService, delay: Duration) {
     service.child = None;
     service.started_at = None;
     service.next_restart_at = Some(Instant::now() + delay);
+    service.completed_successfully = false;
+}
+
+fn dependencies_ready(
+    services: &HashMap<&'static str, ManagedService>,
+    service: &ManagedService,
+) -> bool {
+    service.spec.depends_on.iter().all(|dependency_name| {
+        services
+            .get(dependency_name)
+            .map(|dependency| {
+                if dependency.spec.is_setup_only() {
+                    dependency.completed_successfully
+                } else {
+                    dependency.child.is_some()
+                }
+            })
+            .unwrap_or(false)
+    })
+}
+
+fn update_waiting_for_dependencies_state(
+    state: &SharedDashboardState,
+    service_name: &str,
+    dependencies: &[&str],
+) {
+    if dependencies.is_empty() {
+        return;
+    }
+    update_service(state, service_name, |snapshot| {
+        snapshot.state = String::from("waiting");
+        snapshot.pid = None;
+        snapshot.next_restart_at = None;
+        snapshot.message = format!("Waiting for {}", dependencies.join(", "));
+    });
+}
+
+fn spawn_or_schedule(
+    service: &mut ManagedService,
+    config: &Config,
+    dashboard_state: &SharedDashboardState,
+    restart_count: u32,
+) {
+    match spawn_service(service.spec, config, restart_count, dashboard_state) {
+        Ok(restarted_service) => {
+            update_running_state(dashboard_state, &restarted_service);
+            record_event(
+                dashboard_state,
+                format!(
+                    "service={} event={} restart_count={restart_count}",
+                    service.spec.name,
+                    if service.ever_started {
+                        "restarted"
+                    } else {
+                        "spawned"
+                    }
+                ),
+            );
+            *service = restarted_service;
+        }
+        Err(error) => {
+            let backoff = restart_backoff(Duration::ZERO, restart_count);
+            service.restart_count = restart_count;
+            service.next_restart_at = Some(Instant::now() + backoff);
+            service.ever_started = true;
+            service.completed_successfully = false;
+            update_scheduled_restart_state(
+                dashboard_state,
+                service.spec.name,
+                restart_count,
+                backoff,
+                if restart_count == 0 {
+                    format!("Spawn failed: {error}")
+                } else {
+                    format!("Restart failed: {error}")
+                },
+            );
+            log_supervisor_event(&format!(
+                "service={} event={} error={} restart_in_ms={}",
+                service.spec.name,
+                if restart_count == 0 {
+                    "spawn-failed"
+                } else {
+                    "restart-failed"
+                },
+                error,
+                backoff.as_millis()
+            ));
+            record_event(
+                dashboard_state,
+                format!(
+                    "service={} event={} error={}",
+                    service.spec.name,
+                    if restart_count == 0 {
+                        "spawn-failed"
+                    } else {
+                        "restart-failed"
+                    },
+                    error
+                ),
+            );
+        }
+    }
 }
 
 fn describe_exit(status: ExitStatus) -> String {
@@ -366,45 +473,19 @@ pub fn run_supervisor(config: &Config) -> Result<(), String> {
     let mut services = HashMap::new();
 
     for spec in SERVICES {
-        match spawn_service(*spec, config, 0, &dashboard_state) {
-            Ok(service) => {
-                update_running_state(&dashboard_state, &service);
-                record_event(
-                    &dashboard_state,
-                    format!("service={} event=spawned", spec.name),
-                );
-                services.insert(spec.name, service);
-            }
-            Err(error) => {
-                log_supervisor_event(&format!(
-                    "service={} event=spawn-failed error={} restart_in_ms={}",
-                    spec.name,
-                    error,
-                    BASE_BACKOFF.as_millis()
-                ));
-                services.insert(
-                    spec.name,
-                    ManagedService {
-                        spec: *spec,
-                        child: None,
-                        started_at: None,
-                        restart_count: 0,
-                        next_restart_at: Some(Instant::now() + BASE_BACKOFF),
-                    },
-                );
-                update_scheduled_restart_state(
-                    &dashboard_state,
-                    spec.name,
-                    0,
-                    BASE_BACKOFF,
-                    format!("Spawn failed: {error}"),
-                );
-                record_event(
-                    &dashboard_state,
-                    format!("service={} event=spawn-failed error={}", spec.name, error),
-                );
-            }
-        }
+        services.insert(
+            spec.name,
+            ManagedService {
+                spec: *spec,
+                child: None,
+                started_at: None,
+                restart_count: 0,
+                next_restart_at: None,
+                ever_started: false,
+                completed_successfully: false,
+            },
+        );
+        update_waiting_for_dependencies_state(&dashboard_state, spec.name, spec.depends_on);
     }
 
     loop {
@@ -427,52 +508,40 @@ pub fn run_supervisor(config: &Config) -> Result<(), String> {
         }
 
         for spec in SERVICES {
+            let deps_ready = services
+                .get(spec.name)
+                .map(|service| dependencies_ready(&services, service))
+                .unwrap_or(false);
             let Some(service) = services.get_mut(spec.name) else {
                 log_supervisor_event(&format!("service={} event=state-missing", spec.name));
                 continue;
             };
 
+            if !deps_ready {
+                if service.child.is_none() && service.next_restart_at.is_none() {
+                    update_waiting_for_dependencies_state(
+                        &dashboard_state,
+                        service.spec.name,
+                        service.spec.depends_on,
+                    );
+                }
+                continue;
+            }
+
+            if !service.ever_started && service.child.is_none() && service.next_restart_at.is_none()
+            {
+                spawn_or_schedule(service, config, &dashboard_state, 0);
+                continue;
+            }
+
             if let Some(next_restart_at) = service.next_restart_at {
                 if Instant::now() >= next_restart_at {
-                    let restart_count = service.restart_count + 1;
-                    match spawn_service(service.spec, config, restart_count, &dashboard_state) {
-                        Ok(restarted_service) => {
-                            update_running_state(&dashboard_state, &restarted_service);
-                            record_event(
-                                &dashboard_state,
-                                format!(
-                                    "service={} event=restarted restart_count={restart_count}",
-                                    service.spec.name
-                                ),
-                            );
-                            *service = restarted_service;
-                        }
-                        Err(error) => {
-                            let backoff = restart_backoff(Duration::ZERO, restart_count);
-                            service.restart_count = restart_count;
-                            schedule_restart(service, backoff);
-                            update_scheduled_restart_state(
-                                &dashboard_state,
-                                service.spec.name,
-                                restart_count,
-                                backoff,
-                                format!("Restart failed: {error}"),
-                            );
-                            log_supervisor_event(&format!(
-                                "service={} event=restart-failed error={} restart_in_ms={}",
-                                service.spec.name,
-                                error,
-                                backoff.as_millis()
-                            ));
-                            record_event(
-                                &dashboard_state,
-                                format!(
-                                    "service={} event=restart-failed error={}",
-                                    service.spec.name, error
-                                ),
-                            );
-                        }
-                    }
+                    let restart_count = if service.ever_started {
+                        service.restart_count + 1
+                    } else {
+                        0
+                    };
+                    spawn_or_schedule(service, config, &dashboard_state, restart_count);
                 }
                 continue;
             }
@@ -535,6 +604,7 @@ pub fn run_supervisor(config: &Config) -> Result<(), String> {
                     };
                     if service.spec.is_setup_only() {
                         if status.success() {
+                            service.completed_successfully = true;
                             update_completed_state(
                                 &dashboard_state,
                                 service.spec.name,
@@ -631,6 +701,7 @@ mod tests {
         command: ServiceCommand::Run("exec true"),
         cwd: None,
         env: empty_env,
+        depends_on: &[],
         dashboard: crate::services::ServiceDashboard {
             title: "Test",
             description: "Test service",
@@ -659,6 +730,8 @@ mod tests {
                 started_at: Some(Instant::now()),
                 restart_count: 0,
                 next_restart_at: None,
+                ever_started: true,
+                completed_successfully: false,
             },
         );
         services.insert(
@@ -669,6 +742,8 @@ mod tests {
                 started_at: None,
                 restart_count: 1,
                 next_restart_at: Some(Instant::now() + BASE_BACKOFF),
+                ever_started: true,
+                completed_successfully: false,
             },
         );
 

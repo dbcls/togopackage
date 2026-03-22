@@ -1,0 +1,17 @@
+[package]
+name = "togopackage-ingest"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bzip2 = "0.6"
+clap = { version = "4", features = ["derive", "env"] }
+flate2 = "1"
+glob = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+sha2 = "0.10"
+tempfile = "3"
+xz2 = "0.1"
+zstd = "0.13"

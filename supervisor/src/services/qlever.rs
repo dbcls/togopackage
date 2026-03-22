@@ -61,10 +61,11 @@ fn env(config: &Config) -> Vec<(&'static str, String)> {
 
 pub const SPEC: ServiceSpec = ServiceSpec {
     name: "qlever",
-    setup_command: Some("python3 /togo/runtime/support/setup_qlever.py"),
+    setup_command: None,
     command: ServiceCommand::RunWithConfig(command),
     cwd: None,
     env,
+    depends_on: &["prepare-data"],
     dashboard: ServiceDashboard {
         title: "QLever",
         description: "SPARQL backend",

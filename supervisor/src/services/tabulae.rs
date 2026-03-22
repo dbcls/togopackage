@@ -21,6 +21,7 @@ pub const SPEC: ServiceSpec = ServiceSpec {
     command: ServiceCommand::SetupOnly,
     cwd: None,
     env,
+    depends_on: &["sparql-proxy"],
     dashboard: ServiceDashboard {
         title: "Tabulae",
         description: "Query-driven tabular views",

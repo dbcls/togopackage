@@ -25,6 +25,7 @@ pub const SPEC: ServiceSpec = ServiceSpec {
     ),
     cwd: None,
     env,
+    depends_on: &[],
     dashboard: ServiceDashboard {
         title: "Caddy",
         description: "Reverse proxy and static entrypoint",
