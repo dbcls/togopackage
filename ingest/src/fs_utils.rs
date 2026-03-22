@@ -167,6 +167,7 @@ mod tests {
     use flate2::{write::GzEncoder, Compression};
     use std::fs::{self, File, FileTimes};
     use std::io::Write;
+    use std::time::{Duration, SystemTime};
     use tempfile::tempdir;
 
     #[test]
@@ -187,8 +188,13 @@ mod tests {
         write_gzip(&path, "first\n");
         let output = maybe_decompress(&path).expect("first decompress");
         assert_eq!(fs::read_to_string(&output).expect("read output"), "first\n");
+        let first_mtime = fs::metadata(&path)
+            .expect("source metadata")
+            .modified()
+            .expect("source mtime");
 
         write_gzip(&path, "second\n");
+        set_file_mtime(&path, first_mtime + Duration::from_secs(1));
         let output = maybe_decompress(&path).expect("second decompress");
 
         assert_eq!(
@@ -228,5 +234,11 @@ mod tests {
             .write_all(contents.as_bytes())
             .expect("write gzip contents");
         encoder.finish().expect("finish gzip");
+    }
+
+    fn set_file_mtime(path: &std::path::Path, mtime: SystemTime) {
+        let file = File::options().write(true).open(path).expect("open file");
+        file.set_times(FileTimes::new().set_modified(mtime))
+            .expect("set mtime");
     }
 }
