@@ -39,7 +39,7 @@ All commands use the same set of CLI options, and every option can also be provi
 | `--source-manifest-path` | `SOURCE_MANIFEST_PATH` | `${QLEVER_DATA_DIR}/source-manifest.json` |
 | `--qlever-index-base` | `QLEVER_INDEX_BASE` | `/data/qlever/index/default` |
 | `--virtuoso-data-dir` | `VIRTUOSO_DATA_DIR` | `/data/virtuoso` |
-| `--virtuoso-ini-path` | `VIRTUOSO_INI_PATH` | `${VIRTUOSO_DATA_DIR}/virtuoso.ini` |
+| `--virtuoso-ini-path` | `VIRTUOSO_INI_PATH` | `/tmp/togopackage-virtuoso/virtuoso.ini` |
 | `--virtuoso-http-port` | `VIRTUOSO_HTTP_PORT` | `8890` |
 | `--virtuoso-isql-port` | `VIRTUOSO_ISQL_PORT` | `1111` |
 | `--virtuoso-dba-password` | `VIRTUOSO_DBA_PASSWORD` | `dba` |
@@ -61,7 +61,7 @@ The setup flow writes and updates these files under `/data` by default:
 - source files in `/data/sources`
 - source manifest at `/data/sources/source-manifest.json`
 - QLever index files under `/data/qlever/index`
-- Virtuoso config at `/data/virtuoso/virtuoso.ini`
+- Virtuoso config at `/tmp/togopackage-virtuoso/virtuoso.ini`
 - Virtuoso database files under `/data/virtuoso/db`
 - state stamps such as `.loaded-input-hash`
 

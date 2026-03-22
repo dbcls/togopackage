@@ -263,7 +263,7 @@ This section summarizes what TogoPackage prepares at startup.
 - Input refresh
   - Recreating a cached `.gz` source also refreshes the decompressed file used by loaders
 - `Virtuoso`
-  - Generates `/path/to/data/virtuoso/virtuoso.ini` on first startup
+  - Generates `/tmp/togopackage-virtuoso/virtuoso.ini` on first startup
   - Stores DB files under `/path/to/data/virtuoso/db`
   - Reuses `/path/to/data/sources/source-manifest.json` directly
   - Writes `/path/to/data/virtuoso/load.sql`

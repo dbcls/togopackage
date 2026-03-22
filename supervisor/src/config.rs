@@ -212,7 +212,7 @@ impl Config {
             virtuoso_http_port: String::from("8890"),
             virtuoso_isql_port: String::from("1111"),
             virtuoso_data_dir: virtuoso_data_dir.clone(),
-            virtuoso_ini_path: format!("{virtuoso_data_dir}/virtuoso.ini"),
+            virtuoso_ini_path: String::from("/tmp/togopackage-virtuoso/virtuoso.ini"),
             virtuoso_dba_password: runtime_config
                 .virtuoso
                 .server
