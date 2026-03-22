@@ -32,6 +32,7 @@ pub struct ServiceSpec {
     pub command: ServiceCommand,
     pub cwd: Option<ConfigPath>,
     pub env: fn(&Config) -> Vec<(&'static str, String)>,
+    pub readiness_command: Option<fn(&Config) -> String>,
     pub depends_on: &'static [&'static str],
     pub dashboard: ServiceDashboard,
 }
@@ -81,6 +82,10 @@ impl ServiceSpec {
 
     pub fn is_setup_only(&self) -> bool {
         matches!(self.command, ServiceCommand::SetupOnly)
+    }
+
+    pub fn readiness_shell_command(&self, config: &Config) -> Option<String> {
+        self.readiness_command.map(|command| command(config))
     }
 }
 

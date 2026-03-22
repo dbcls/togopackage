@@ -41,6 +41,7 @@ pub const SPEC: ServiceSpec = ServiceSpec {
     command: ServiceCommand::Run("exec uv run --no-sync togo-mcp-server"),
     cwd: Some(ConfigPath::Togomcp),
     env,
+    readiness_command: None,
     depends_on: &[],
     dashboard: ServiceDashboard {
         title: "TogoMCP",

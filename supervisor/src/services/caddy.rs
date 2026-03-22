@@ -29,6 +29,7 @@ pub const SPEC: ServiceSpec = ServiceSpec {
     ),
     cwd: None,
     env,
+    readiness_command: None,
     depends_on: &[],
     dashboard: ServiceDashboard {
         title: "Caddy",

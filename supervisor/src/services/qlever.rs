@@ -59,12 +59,20 @@ fn env(config: &Config) -> Vec<(&'static str, String)> {
     env
 }
 
+fn readiness_command(config: &Config) -> String {
+    format!(
+        "curl -fsS --max-time 1 --get --data-urlencode 'query=ASK {{}}' --data-urlencode 'send=5000' --data-urlencode 'action=sparql_json_export' http://127.0.0.1:{}/sparql >/dev/null",
+        config.qlever_port
+    )
+}
+
 pub const SPEC: ServiceSpec = ServiceSpec {
     name: "qlever",
     setup_command: None,
     command: ServiceCommand::RunWithConfig(command),
     cwd: None,
     env,
+    readiness_command: Some(readiness_command),
     depends_on: &["prepare-data"],
     dashboard: ServiceDashboard {
         title: "QLever",

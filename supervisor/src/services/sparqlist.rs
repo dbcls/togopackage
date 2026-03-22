@@ -33,6 +33,7 @@ pub const SPEC: ServiceSpec = ServiceSpec {
     command: ServiceCommand::Run("exec npm start"),
     cwd: Some(ConfigPath::Sparqlist),
     env,
+    readiness_command: None,
     depends_on: &["sparql-proxy"],
     dashboard: ServiceDashboard {
         title: "SPARQList",

@@ -39,6 +39,7 @@ struct ManagedService {
     next_restart_at: Option<Instant>,
     ever_started: bool,
     completed_successfully: bool,
+    readiness_confirmed: bool,
 }
 
 unsafe extern "C" {
@@ -118,6 +119,7 @@ fn spawn_service(
         next_restart_at: None,
         ever_started: true,
         completed_successfully: false,
+        readiness_confirmed: spec.readiness_command.is_none(),
     })
 }
 
@@ -137,6 +139,17 @@ fn update_running_state(state: &SharedDashboardState, service: &ManagedService) 
         snapshot.started_at = Some(now_rfc3339());
         snapshot.next_restart_at = None;
         snapshot.message = String::from("Running");
+    });
+}
+
+fn update_starting_state(state: &SharedDashboardState, service: &ManagedService) {
+    update_service(state, service.spec.name, |snapshot| {
+        snapshot.state = String::from("starting");
+        snapshot.pid = service.child.as_ref().map(Child::id);
+        snapshot.restart_count = service.restart_count;
+        snapshot.started_at = Some(now_rfc3339());
+        snapshot.next_restart_at = None;
+        snapshot.message = String::from("Waiting for readiness");
     });
 }
 
@@ -252,6 +265,7 @@ fn schedule_restart(service: &mut ManagedService, delay: Duration) {
     service.started_at = None;
     service.next_restart_at = Some(Instant::now() + delay);
     service.completed_successfully = false;
+    service.readiness_confirmed = service.spec.readiness_command.is_none();
 }
 
 fn dependencies_ready(
@@ -265,11 +279,28 @@ fn dependencies_ready(
                 if dependency.spec.is_setup_only() {
                     dependency.completed_successfully
                 } else {
-                    dependency.child.is_some()
+                    dependency.child.is_some() && dependency.readiness_confirmed
                 }
             })
             .unwrap_or(false)
     })
+}
+
+fn readiness_confirmed(service: &ManagedService, config: &Config) -> bool {
+    let Some(command) = service.spec.readiness_shell_command(config) else {
+        return true;
+    };
+
+    let mut process = Command::new("/usr/bin/env");
+    process.arg("bash").arg("-c").arg(command);
+    if let Some(cwd) = service.spec.cwd {
+        process.current_dir(config.resolve_path(cwd));
+    }
+    process.envs((service.spec.env)(config));
+    process.stdout(Stdio::null());
+    process.stderr(Stdio::null());
+
+    matches!(process.status(), Ok(status) if status.success())
 }
 
 fn update_waiting_for_dependencies_state(
@@ -296,7 +327,11 @@ fn spawn_or_schedule(
 ) {
     match spawn_service(service.spec, config, restart_count, dashboard_state) {
         Ok(restarted_service) => {
-            update_running_state(dashboard_state, &restarted_service);
+            if restarted_service.readiness_confirmed {
+                update_running_state(dashboard_state, &restarted_service);
+            } else {
+                update_starting_state(dashboard_state, &restarted_service);
+            }
             record_event(
                 dashboard_state,
                 format!(
@@ -317,6 +352,7 @@ fn spawn_or_schedule(
             service.next_restart_at = Some(Instant::now() + backoff);
             service.ever_started = true;
             service.completed_successfully = false;
+            service.readiness_confirmed = service.spec.readiness_command.is_none();
             update_scheduled_restart_state(
                 dashboard_state,
                 service.spec.name,
@@ -483,6 +519,7 @@ pub fn run_supervisor(config: &Config) -> Result<(), String> {
                 next_restart_at: None,
                 ever_started: false,
                 completed_successfully: false,
+                readiness_confirmed: spec.readiness_command.is_none(),
             },
         );
         update_waiting_for_dependencies_state(&dashboard_state, spec.name, spec.depends_on);
@@ -656,7 +693,17 @@ pub fn run_supervisor(config: &Config) -> Result<(), String> {
                         service.next_restart_at = Some(Instant::now() + backoff);
                     }
                 }
-                Ok(None) => {}
+                Ok(None) => {
+                    if !service.readiness_confirmed && readiness_confirmed(service, config) {
+                        service.readiness_confirmed = true;
+                        update_running_state(&dashboard_state, service);
+                        log_supervisor_event(&format!("service={} event=ready", service.spec.name));
+                        record_event(
+                            &dashboard_state,
+                            format!("service={} event=ready", service.spec.name),
+                        );
+                    }
+                }
                 Err(error) => {
                     schedule_restart(service, BASE_BACKOFF);
                     update_scheduled_restart_state(
@@ -701,6 +748,7 @@ mod tests {
         command: ServiceCommand::Run("exec true"),
         cwd: None,
         env: empty_env,
+        readiness_command: None,
         depends_on: &[],
         dashboard: crate::services::ServiceDashboard {
             title: "Test",
@@ -732,6 +780,7 @@ mod tests {
                 next_restart_at: None,
                 ever_started: true,
                 completed_successfully: false,
+                readiness_confirmed: true,
             },
         );
         services.insert(
@@ -744,6 +793,7 @@ mod tests {
                 next_restart_at: Some(Instant::now() + BASE_BACKOFF),
                 ever_started: true,
                 completed_successfully: false,
+                readiness_confirmed: false,
             },
         );
 
@@ -755,5 +805,71 @@ mod tests {
                 let _ = child.wait();
             }
         }
+    }
+
+    #[test]
+    fn dependencies_require_readiness_for_non_setup_services() {
+        let mut services = HashMap::new();
+        services.insert(
+            "backend",
+            ManagedService {
+                spec: TEST_SPEC,
+                child: None,
+                started_at: None,
+                restart_count: 0,
+                next_restart_at: None,
+                ever_started: true,
+                completed_successfully: false,
+                readiness_confirmed: false,
+            },
+        );
+        services.insert(
+            "dependent",
+            ManagedService {
+                spec: ServiceSpec {
+                    depends_on: &["backend"],
+                    ..TEST_SPEC
+                },
+                child: None,
+                started_at: None,
+                restart_count: 0,
+                next_restart_at: None,
+                ever_started: false,
+                completed_successfully: false,
+                readiness_confirmed: false,
+            },
+        );
+
+        let dependent = services.get("dependent").expect("dependent service");
+        assert!(!dependencies_ready(&services, dependent));
+
+        services
+            .get_mut("backend")
+            .expect("backend service")
+            .readiness_confirmed = true;
+        let dependent = services.get("dependent").expect("dependent service");
+        assert!(!dependencies_ready(&services, dependent));
+
+        let child = Command::new("/usr/bin/env")
+            .arg("bash")
+            .arg("-c")
+            .arg("exec sleep 30")
+            .spawn()
+            .expect("spawn sleep");
+        let pid = child.id();
+        services.get_mut("backend").expect("backend service").child = Some(child);
+
+        let dependent = services.get("dependent").expect("dependent service");
+        assert!(dependencies_ready(&services, dependent));
+
+        if let Some(child) = services
+            .get_mut("backend")
+            .and_then(|service| service.child.as_mut())
+        {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+
+        assert!(pid > 0);
     }
 }
