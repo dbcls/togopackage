@@ -2,17 +2,21 @@ use crate::config::Config;
 
 use super::{base_env, ServiceCommand, ServiceDashboard, ServiceSpec};
 
+const CADDY_HOME: &str = "/tmp/togopackage-caddy";
+const CADDY_CONFIG_HOME: &str = "/tmp/togopackage-caddy-config";
+const CADDY_DATA_HOME: &str = "/tmp/togopackage-caddy-data";
+
 fn env(config: &Config) -> Vec<(&'static str, String)> {
     let mut env = base_env(config);
     env.extend([
-        ("HOME", String::from("/data")),
+        ("HOME", String::from(CADDY_HOME)),
         ("SUPERVISOR_HTTP_PORT", config.supervisor_http_port.clone()),
         ("SPARQL_PROXY_PORT", config.sparql_proxy_port.clone()),
         ("SPARQLIST_PORT", config.sparqlist_port.clone()),
         ("GRASP_PORT", config.grasp_port.clone()),
         ("TOGOMCP_PORT", config.togomcp_port.clone()),
-        ("XDG_CONFIG_HOME", String::from("/data/.config")),
-        ("XDG_DATA_HOME", String::from("/data/.local/share")),
+        ("XDG_CONFIG_HOME", String::from(CADDY_CONFIG_HOME)),
+        ("XDG_DATA_HOME", String::from(CADDY_DATA_HOME)),
     ]);
     env
 }
