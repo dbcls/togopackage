@@ -2,10 +2,17 @@ use crate::config::Config;
 
 use super::{base_env, ConfigPath, ServiceCommand, ServiceDashboard, ServiceSpec};
 
+fn command(config: &Config) -> String {
+    format!(
+        "exec /usr/bin/virtuoso-t -f -c \"{}\" +pwddba \"{}\" +pwddav \"{}\"",
+        config.virtuoso_ini_path, config.virtuoso_dba_password, config.virtuoso_dba_password
+    )
+}
+
 pub const SPEC: ServiceSpec = ServiceSpec {
     name: "virtuoso",
     setup_command: None,
-    command: ServiceCommand::Run("exec /togo/runtime/run/virtuoso.sh"),
+    command: ServiceCommand::RunWithConfig(command),
     cwd: Some(ConfigPath::VirtuosoData),
     env,
     depends_on: &["prepare-data"],
