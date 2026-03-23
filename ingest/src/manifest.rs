@@ -1,4 +1,4 @@
-use crate::fs_utils::{download, file_sha256, maybe_decompress};
+use crate::fs_utils::{file_sha256, maybe_decompress};
 use crate::model::{IngestConfigFile, InputManifest, InputSpec, ManifestSource};
 use glob::glob;
 use sha2::{Digest, Sha256};
@@ -85,46 +85,30 @@ fn prepare_input_specs(
             ));
         }
 
-        match (&source.url, &source.path) {
-            (Some(_), Some(_)) => {
-                return Err(format!("Specify only one of url or path for source #{idx}"))
+        let Some(path_value) = source.path.as_deref() else {
+            return Err(format!("Missing path for source #{idx}"));
+        };
+        let local_paths = resolve_local_paths(path_value, config_path, idx)?;
+        for (match_idx, local_path) in local_paths.into_iter().enumerate() {
+            let target = local_copy_target(&local_path, idx, match_idx, data_dir);
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent).map_err(|error| {
+                    format!("failed to create directory {}: {error}", parent.display())
+                })?;
             }
-            (None, None) => return Err(format!("Missing url/path for source #{idx}")),
-            (Some(url), None) => {
-                let target = remote_download_target(url, idx, data_dir);
-                download(url, &target)?;
-                let input_file = canonicalize_source_path(maybe_decompress(&target)?, &data_format)?;
-                specs.push(InputSpec {
-                    path: input_file,
-                    graph: source.graph.clone(),
-                    format: data_format,
-                });
-            }
-            (None, Some(path_value)) => {
-                let local_paths = resolve_local_paths(path_value, config_path, idx)?;
-                for (match_idx, local_path) in local_paths.into_iter().enumerate() {
-                    let target = local_copy_target(&local_path, idx, match_idx, data_dir);
-                    if let Some(parent) = target.parent() {
-                        fs::create_dir_all(parent).map_err(|error| {
-                            format!("failed to create directory {}: {error}", parent.display())
-                        })?;
-                    }
-                    fs::copy(&local_path, &target).map_err(|error| {
-                        format!(
-                            "failed to copy local source {} to {}: {error}",
-                            local_path.display(),
-                            target.display()
-                        )
-                    })?;
-                    let input_file =
-                        canonicalize_source_path(maybe_decompress(&target)?, &data_format)?;
-                    specs.push(InputSpec {
-                        path: input_file,
-                        graph: source.graph.clone(),
-                        format: data_format.clone(),
-                    });
-                }
-            }
+            fs::copy(&local_path, &target).map_err(|error| {
+                format!(
+                    "failed to copy local source {} to {}: {error}",
+                    local_path.display(),
+                    target.display()
+                )
+            })?;
+            let input_file = canonicalize_source_path(maybe_decompress(&target)?, &data_format)?;
+            specs.push(InputSpec {
+                path: input_file,
+                graph: source.graph.clone(),
+                format: data_format.clone(),
+            });
         }
     }
 
@@ -183,18 +167,6 @@ fn resolve_local_path(path_value: &str, config_path: &Path) -> PathBuf {
             .parent()
             .unwrap_or_else(|| Path::new("."))
             .join(path)
-    }
-}
-
-fn remote_download_target(url: &str, idx: usize, data_dir: &Path) -> PathBuf {
-    let name = url
-        .rsplit('/')
-        .find(|segment| !segment.is_empty())
-        .unwrap_or_default();
-    if name.is_empty() {
-        data_dir.join(format!("source_{idx}"))
-    } else {
-        data_dir.join(format!("source_{idx}_{name}"))
     }
 }
 
@@ -291,5 +263,21 @@ mod tests {
         let error = prepare_input_manifest(&config_path, &data_dir).expect_err("invalid config");
 
         assert!(error.contains("source #0 must not specify graph when format is nq"));
+    }
+
+    #[test]
+    fn prepare_input_manifest_requires_path() {
+        let root = tempdir().expect("tempdir");
+        let config_path = root.path().join("config.yaml");
+        let data_dir = root.path().join("prepared");
+        fs::write(
+            &config_path,
+            "source:\n  - name: Missing local path\n    format: ttl\n",
+        )
+        .expect("write config");
+
+        let error = prepare_input_manifest(&config_path, &data_dir).expect_err("invalid config");
+
+        assert!(error.contains("Missing path for source #0"));
     }
 }

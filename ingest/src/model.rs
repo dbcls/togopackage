@@ -32,8 +32,6 @@ pub struct SourceConfigFile {
     #[serde(default, rename = "name")]
     pub _name: Option<String>,
     #[serde(default)]
-    pub url: Option<String>,
-    #[serde(default)]
     pub path: Option<String>,
     #[serde(default)]
     pub format: Option<String>,

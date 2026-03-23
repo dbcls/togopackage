@@ -5,36 +5,8 @@ use std::ffi::OsStr;
 use std::fs::{self, File, FileTimes};
 use std::io::{self, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use tempfile::NamedTempFile;
 use xz2::read::XzDecoder;
-
-pub fn download(url: &str, dest: &Path) -> Result<(), String> {
-    if dest.exists() {
-        return Ok(());
-    }
-
-    let tmp = unique_tmp_file(dest)?;
-    let status = Command::new("curl")
-        .arg("-fsSL")
-        .arg("-o")
-        .arg(tmp.path())
-        .arg(url)
-        .status()
-        .map_err(|error| format!("failed to download {url}: {error}"))?;
-    if !status.success() {
-        return Err(format!(
-            "failed to download {url}: curl exited with {status}"
-        ));
-    }
-    tmp.persist(dest).map_err(|error| {
-        format!(
-            "failed to move downloaded file to {}: {error}",
-            dest.display()
-        )
-    })?;
-    Ok(())
-}
 
 pub fn maybe_decompress(path: &Path) -> Result<PathBuf, String> {
     let suffix = path.extension().and_then(OsStr::to_str).unwrap_or_default();

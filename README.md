@@ -105,7 +105,7 @@ The container publishes:
 ## Prepare config.yaml
 
 `/data/config.yaml` is the main runtime input definition.
-Each `source` entry must specify exactly one of `url` or `path`.
+Each `source` entry must specify `path`.
 You can also choose which backend `sparql-proxy` forwards to with `sparql_backend`.
 
 In the examples above, the host-side bind-mounted directory is `./data.example` or `/path/to/data`.
@@ -136,10 +136,6 @@ virtuoso:
     MAX_CLIENT_CONNECTIONS: 10
 
 source:
-  - name: Example RDF source
-    url: https://example.org/example.ttl.gz
-    format: ttl
-    graph: http://example.org/graph/main
   - name: Local RDF file
     path: ./sources/local.ttl.gz
     format: ttl
@@ -225,7 +221,7 @@ Main mounted runtime directory on the host: `/path/to/data` in generic examples,
 - `/path/to/data/config.yaml`: main source definition
 - `/path/to/data/qlever`: QLever index data
 - `/path/to/data/virtuoso`: Virtuoso configuration, DB files, and load metadata
-- `/path/to/data/sources`: downloaded or prepared source files
+- `/path/to/data/sources`: prepared source files
 - `/path/to/data/sparqlist`: generated SPARQList repository
 - `/path/to/data/grasp`: generated Grasp resources
 - `/path/to/data/tabulae/queries`: Tabulae query files
@@ -246,9 +242,8 @@ Normal workflow:
 
 Important behavior:
 
-- Remote `url` sources are cached under the mounted data directory, typically `/path/to/data/sources`
-- Restarting the container does not automatically re-download an already cached URL
-- To refresh upstream content at the same URL, remove the cached file first and then restart the container
+- Source files are copied under the mounted data directory, typically `/path/to/data/sources`
+- Restarting the container reuses prepared local copies until the source files change
 
 ## Generated Artifacts
 
@@ -260,7 +255,7 @@ This section summarizes what TogoPackage prepares at startup.
   - Tracks the current input hash in `/path/to/data/qlever/index/.loaded-input-hash`
   - Rebuilds when `/data/config.yaml` or resolved source files change
 - Input refresh
-  - Recreating a cached `.gz` source also refreshes the decompressed file used by loaders
+  - Updating a `.gz` source also refreshes the decompressed file used by loaders
 - `Virtuoso`
   - Generates `/tmp/togopackage-virtuoso/virtuoso.ini` on first startup
   - Stores DB files under `/path/to/data/virtuoso/db`
