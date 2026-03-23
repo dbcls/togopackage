@@ -127,7 +127,6 @@ pub struct Config {
     pub togomcp_dir: String,
     pub togomcp_data_dir: String,
     pub togomcp_mie_sync_source_dir: String,
-    pub togomcp_endpoints_source_file: String,
     pub virtuoso_http_port: String,
     pub virtuoso_isql_port: String,
     pub virtuoso_data_dir: String,
@@ -208,7 +207,6 @@ impl Config {
             togomcp_dir: String::from("/vendor/togomcp"),
             togomcp_data_dir: togomcp_data_dir.clone(),
             togomcp_mie_sync_source_dir: format!("{togomcp_data_dir}/mie"),
-            togomcp_endpoints_source_file: format!("{togomcp_data_dir}/endpoints.csv"),
 
             virtuoso_http_port: String::from("8890"),
             virtuoso_isql_port: String::from("1111"),

@@ -231,7 +231,6 @@ Main mounted runtime directory on the host: `/path/to/data` in generic examples,
 - `/path/to/data/tabulae/queries`: Tabulae query files
 - `/path/to/data/tabulae/dist`: generated Tabulae output
 - `/path/to/data/togomcp/mie`: user-provided MIE files
-- `/path/to/data/togomcp/endpoints.csv`: user-provided extra endpoints
 - `/path/to/data/rdf-config`: RDF-config models used by generators
 
 If `/path/to/data/rdf-config` contains model directories with `model.yaml`, TogoPackage generates derived assets for supported services at startup.
@@ -281,9 +280,11 @@ This section summarizes what TogoPackage prepares at startup.
   - Builds output under `/path/to/data/tabulae/dist`
   - Generated query files include pagination metadata comments such as `# Paginate: 10000`
 - `togomcp`
-  - Rebuilds runtime MIE files from bundled defaults plus `/path/to/data/togomcp/mie`
-  - Rebuilds runtime endpoints from bundled defaults plus `/path/to/data/togomcp/endpoints.csv`
-  - Removing a user-provided MIE file or endpoint row is reflected on the next container restart
+  - Rebuilds runtime MIE files only from `/path/to/data/togomcp/mie`
+  - Rebuilds runtime endpoints automatically from runtime MIE files
+  - Generated TogoMCP endpoints always target the local `sparql-proxy` endpoint
+  - If no user-provided TogoMCP MIE files exist, TogoMCP starts with no runtime MIE files and an empty endpoints list
+  - Removing a user-provided MIE file is reflected on the next container restart
 
 To force regeneration for generated content, remove the corresponding directory under `/path/to/data` and restart the container.
 For Grasp generated from RDF-config, remove `/path/to/data/grasp/*.graphql` first. If `.graphql` files remain there, they are treated as user-managed resources and are kept as-is.

@@ -28,10 +28,6 @@ fn env(config: &Config) -> Vec<(&'static str, String)> {
             "TOGOMCP_MIE_SYNC_SOURCE_DIR",
             config.togomcp_mie_sync_source_dir.clone(),
         ),
-        (
-            "TOGOMCP_ENDPOINTS_SOURCE_FILE",
-            config.togomcp_endpoints_source_file.clone(),
-        ),
     ]
 }
 
