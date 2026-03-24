@@ -42,6 +42,7 @@ const SERVICE_ORDER: &[&str] = &[
     "virtuoso",
     "sparqlist",
     "grasp",
+    "rdf-config-mcp",
     "tabulae",
     "togomcp",
 ];

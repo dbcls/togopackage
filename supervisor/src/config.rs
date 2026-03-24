@@ -18,6 +18,7 @@ pub enum ConfigPath {
     Sparqlist,
     Grasp,
     Togomcp,
+    RdfConfigMcp,
     VirtuosoData,
 }
 
@@ -27,11 +28,19 @@ pub enum SparqlBackend {
     Virtuoso,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum McpServer {
+    Togomcp,
+    RdfConfigMcp,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RuntimeConfigFile {
     #[serde(default)]
     sparql_backend: Option<String>,
+    #[serde(default)]
+    mcp_server: Option<String>,
     #[serde(default)]
     sparql_proxy: SparqlProxyConfigFile,
     #[serde(default)]
@@ -146,6 +155,9 @@ pub struct Config {
     pub togomcp_dir: String,
     pub togomcp_data_dir: String,
     pub togomcp_mie_sync_source_dir: String,
+    pub rdf_config_mcp_port: String,
+    pub rdf_config_mcp_dir: String,
+    pub rdf_config_mcp_config_dir: String,
     pub virtuoso_http_port: String,
     pub virtuoso_isql_port: String,
     pub virtuoso_data_dir: String,
@@ -161,6 +173,7 @@ pub struct Config {
     pub tabulae_queries_dir: String,
     pub tabulae_dist_dir: String,
     pub sparql_backend: SparqlBackend,
+    pub mcp_server: McpServer,
 }
 
 impl Config {
@@ -216,10 +229,7 @@ impl Config {
             sparql_proxy_dir: String::from("/vendor/sparql-proxy"),
 
             sparqlist_port: String::from("7003"),
-            sparqlist_admin_password: runtime_config
-                .sparqlist
-                .admin_password
-                .unwrap_or_default(),
+            sparqlist_admin_password: runtime_config.sparqlist.admin_password.unwrap_or_default(),
             sparqlist_root_path: String::from("/sparqlist/"),
             sparqlist_repository_path: String::from("/data/sparqlist"),
             sparqlist_dir: String::from("/vendor/sparqlist"),
@@ -233,6 +243,9 @@ impl Config {
             togomcp_dir: String::from("/vendor/togomcp"),
             togomcp_data_dir: togomcp_data_dir.clone(),
             togomcp_mie_sync_source_dir: format!("{togomcp_data_dir}/mie"),
+            rdf_config_mcp_port: String::from("1207"),
+            rdf_config_mcp_dir: String::from("/vendor/rdf-config-mcp"),
+            rdf_config_mcp_config_dir: String::from("/data/rdf-config"),
 
             virtuoso_http_port: String::from("8890"),
             virtuoso_isql_port: String::from("1111"),
@@ -291,6 +304,10 @@ impl Config {
                 Some("virtuoso") => SparqlBackend::Virtuoso,
                 _ => SparqlBackend::QLever,
             },
+            mcp_server: match runtime_config.mcp_server.as_deref().map(str::trim) {
+                Some("rdf-config-mcp") => McpServer::RdfConfigMcp,
+                _ => McpServer::Togomcp,
+            },
         })
     }
 
@@ -310,6 +327,13 @@ impl Config {
         }
     }
 
+    pub fn mcp_server_port(&self) -> &str {
+        match self.mcp_server {
+            McpServer::Togomcp => &self.togomcp_port,
+            McpServer::RdfConfigMcp => &self.rdf_config_mcp_port,
+        }
+    }
+
     pub fn resolve_path(&self, key: ConfigPath) -> &str {
         match key {
             ConfigPath::DataRoot => "/data",
@@ -317,6 +341,7 @@ impl Config {
             ConfigPath::Sparqlist => &self.sparqlist_dir,
             ConfigPath::Grasp => &self.grasp_dir,
             ConfigPath::Togomcp => &self.togomcp_dir,
+            ConfigPath::RdfConfigMcp => &self.rdf_config_mcp_dir,
             ConfigPath::VirtuosoData => &self.virtuoso_data_dir,
         }
     }
@@ -324,7 +349,7 @@ impl Config {
 
 #[cfg(test)]
 mod tests {
-    use super::{Config, SparqlBackend};
+    use super::{Config, McpServer, SparqlBackend};
     use std::fs;
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -360,6 +385,32 @@ mod tests {
 
         fs::remove_file(&path).expect("remove config");
         assert_eq!(backend, SparqlBackend::Virtuoso);
+    }
+
+    #[test]
+    fn reads_rdf_config_mcp_server_from_config_yaml() {
+        let path = temp_config_path("togopackage-config");
+        fs::write(&path, "mcp_server: rdf-config-mcp\nsource: []\n").expect("write config");
+
+        let mcp_server = Config::from_config_path(&path)
+            .expect("config should parse")
+            .mcp_server;
+
+        fs::remove_file(&path).expect("remove config");
+        assert_eq!(mcp_server, McpServer::RdfConfigMcp);
+    }
+
+    #[test]
+    fn invalid_mcp_server_value_falls_back_to_togomcp() {
+        let path = temp_config_path("togopackage-config");
+        fs::write(&path, "mcp_server: unknown\nsource: []\n").expect("write config");
+
+        let mcp_server = Config::from_config_path(&path)
+            .expect("config should parse")
+            .mcp_server;
+
+        fs::remove_file(&path).expect("remove config");
+        assert_eq!(mcp_server, McpServer::Togomcp);
     }
 
     #[test]

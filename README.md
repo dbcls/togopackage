@@ -107,6 +107,7 @@ The container publishes:
 `/data/config.yaml` is the main runtime input definition.
 Each `source` entry must specify `path`.
 You can choose which SPARQL backend TogoPackage uses with `sparql_backend`.
+You can choose which MCP server TogoPackage exposes on `/mcp` with `mcp_server`.
 
 In the examples above, the host-side bind-mounted directory is `./data.example` or `/path/to/data`.
 TogoPackage reads `config.yaml` from that mounted directory.
@@ -116,6 +117,7 @@ You can either use `./data.example` directly or use it as a reference when prepa
 
 ```yaml
 sparql_backend: qlever
+mcp_server: togomcp
 sparql_proxy:
   ADMIN_PASSWORD: your-sparql-proxy-admin-password
 sparqlist:
@@ -168,6 +170,10 @@ Rules:
 - `sparql_backend` selects the backend used by TogoPackage for SPARQL serving and data preparation
 - `sparql-proxy` forwards `/sparql` to the backend selected by `sparql_backend`
 - Default `sparql_backend`: `qlever`
+- `mcp_server` is optional. Supported values: `togomcp`, `rdf-config-mcp`
+- `mcp_server` selects the MCP service exposed at `/mcp`
+- `/sse` and `/messages` are only provided by `togomcp`
+- Default `mcp_server`: `togomcp`
 - `sparql_proxy` is optional
 - `sparql_proxy.ADMIN_PASSWORD` is optional. Default: `password`
 - `qlever` is optional
@@ -215,9 +221,9 @@ Open these URLs after the container starts:
 - `/sparqlist` -> `sparqlist`
 - `/grasp` -> `grasp`
 - `/tabulae` -> static files from `tabulae`
-- `/mcp` -> `togomcp`
-- `/sse` -> `togomcp`
-- `/messages` -> `togomcp`
+- `/mcp` -> MCP server selected by `mcp_server`
+- `/sse` -> `togomcp` only
+- `/messages` -> `togomcp` only
 
 Direct container ports:
 
@@ -386,7 +392,7 @@ If you work on this repository itself, these directories are the main entry poin
 
 - `packaging/`: container build files, bundled defaults, and runtime setup scripts
 - `supervisor/`: Rust-based process supervisor and dashboard server
-- `vendor/`: bundled component repositories such as `sparql-proxy`, `sparqlist`, `grasp`, and `togomcp`
+- `vendor/`: bundled component repositories such as `sparql-proxy`, `sparqlist`, `grasp`, `rdf-config`, `rdf-config-mcp`, and `togomcp`
 - `data/`: bind-mounted runtime state, generated artifacts, caches, and local inputs
 
 ## Component READMEs
@@ -394,6 +400,8 @@ If you work on this repository itself, these directories are the main entry poin
 - [vendor/sparql-proxy/README.md](vendor/sparql-proxy/README.md)
 - [vendor/sparqlist/README.md](vendor/sparqlist/README.md)
 - [vendor/grasp/README.md](vendor/grasp/README.md)
+- [vendor/rdf-config/README.md](vendor/rdf-config/README.md)
+- [vendor/rdf-config-mcp/README.md](vendor/rdf-config-mcp/README.md)
 - [vendor/togomcp/README.md](vendor/togomcp/README.md)
 
 QLever and Virtuoso do not currently have separate component READMEs in this repository.

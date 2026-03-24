@@ -123,6 +123,12 @@ RUN rm -f /vendor/rdf-config/.git \
 ENV PATH="/vendor/rdf-config/bin:${PATH}"
 ENV RUBYLIB="/vendor/rdf-config/lib"
 
+# Install rdf-config-mcp.
+RUN mkdir -p /vendor/rdf-config-mcp/vendor \
+  && ln -sfn /vendor/rdf-config /vendor/rdf-config-mcp/vendor/rdf-config \
+  && cd /vendor/rdf-config-mcp \
+  && bundle install
+
 # Copy runtime setup scripts after all subpackage setup to avoid invalidating
 # heavy build layers during iterative config changes.
 COPY --chmod=755 packaging/runtime /togo/runtime

@@ -15,6 +15,8 @@ fn env(config: &Config) -> Vec<(&'static str, String)> {
         ("SPARQLIST_PORT", config.sparqlist_port.clone()),
         ("GRASP_PORT", config.grasp_port.clone()),
         ("TOGOMCP_PORT", config.togomcp_port.clone()),
+        ("RDF_CONFIG_MCP_PORT", config.rdf_config_mcp_port.clone()),
+        ("MCP_SERVER_PORT", config.mcp_server_port().to_owned()),
         ("XDG_CONFIG_HOME", String::from(CADDY_CONFIG_HOME)),
         ("XDG_DATA_HOME", String::from(CADDY_DATA_HOME)),
     ]);

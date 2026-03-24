@@ -2,13 +2,14 @@ mod caddy;
 mod grasp;
 mod prepare_data;
 mod qlever;
+mod rdf_config_mcp;
 mod sparql_proxy;
 mod sparqlist;
 mod tabulae;
 mod togomcp;
 mod virtuoso;
 
-use crate::config::{Config, ConfigPath};
+use crate::config::{Config, ConfigPath, McpServer};
 
 #[derive(Clone, Copy, Debug)]
 pub struct ServiceEndpoint {
@@ -51,6 +52,7 @@ pub const SERVICES: &[ServiceSpec] = &[
     sparql_proxy::SPEC,
     sparqlist::SPEC,
     grasp::SPEC,
+    rdf_config_mcp::SPEC,
     tabulae::SPEC,
     togomcp::SPEC,
     virtuoso::SPEC,
@@ -81,11 +83,13 @@ pub fn active_services(config: &Config) -> Vec<ServiceSpec> {
 }
 
 fn service_enabled(name: &str, config: &Config) -> bool {
-    match (name, config.sparql_backend) {
-        ("qlever", crate::config::SparqlBackend::Virtuoso) => false,
-        ("virtuoso", crate::config::SparqlBackend::QLever) => false,
-        _ => true,
-    }
+    !matches!(
+        (name, config.sparql_backend, config.mcp_server),
+        ("qlever", crate::config::SparqlBackend::Virtuoso, _)
+            | ("virtuoso", crate::config::SparqlBackend::QLever, _)
+            | ("togomcp", _, McpServer::RdfConfigMcp)
+            | ("rdf-config-mcp", _, McpServer::Togomcp)
+    )
 }
 
 pub fn print_plan(config: &Config) {
@@ -135,9 +139,9 @@ pub fn base_env(config: &Config) -> Vec<(&'static str, String)> {
 #[cfg(test)]
 mod tests {
     use super::active_services;
-    use crate::config::{Config, SparqlBackend};
+    use crate::config::{Config, McpServer, SparqlBackend};
 
-    fn test_config(backend: SparqlBackend) -> Config {
+    fn test_config(backend: SparqlBackend, mcp_server: McpServer) -> Config {
         Config {
             togopackage_config: String::from("/data/config.yaml"),
             togopackage_defaults_dir: String::from("/togo/defaults"),
@@ -171,6 +175,9 @@ mod tests {
             togomcp_dir: String::from("/vendor/togomcp"),
             togomcp_data_dir: String::from("/data/togomcp"),
             togomcp_mie_sync_source_dir: String::from("/data/togomcp/mie"),
+            rdf_config_mcp_port: String::from("1207"),
+            rdf_config_mcp_dir: String::from("/vendor/rdf-config-mcp"),
+            rdf_config_mcp_config_dir: String::from("/data/rdf-config"),
             virtuoso_http_port: String::from("8890"),
             virtuoso_isql_port: String::from("1111"),
             virtuoso_data_dir: String::from("/data/virtuoso"),
@@ -186,12 +193,13 @@ mod tests {
             tabulae_queries_dir: String::from("/data/tabulae/queries"),
             tabulae_dist_dir: String::from("/data/tabulae/dist"),
             sparql_backend: backend,
+            mcp_server,
         }
     }
 
     #[test]
     fn qlever_backend_excludes_virtuoso_service() {
-        let services = active_services(&test_config(SparqlBackend::QLever));
+        let services = active_services(&test_config(SparqlBackend::QLever, McpServer::Togomcp));
         let names = services.iter().map(|spec| spec.name).collect::<Vec<_>>();
 
         assert!(names.contains(&"qlever"));
@@ -208,7 +216,7 @@ mod tests {
 
     #[test]
     fn virtuoso_backend_excludes_qlever_service() {
-        let services = active_services(&test_config(SparqlBackend::Virtuoso));
+        let services = active_services(&test_config(SparqlBackend::Virtuoso, McpServer::Togomcp));
         let names = services.iter().map(|spec| spec.name).collect::<Vec<_>>();
 
         assert!(names.contains(&"virtuoso"));
@@ -221,5 +229,41 @@ mod tests {
                 .depends_on,
             &["virtuoso"]
         );
+    }
+
+    #[test]
+    fn rdf_config_mcp_uses_data_config_dir() {
+        let config = test_config(SparqlBackend::QLever, McpServer::RdfConfigMcp);
+        let service = active_services(&config)
+            .into_iter()
+            .find(|spec| spec.name == "rdf-config-mcp")
+            .expect("rdf-config-mcp service");
+
+        assert_eq!(
+            service.shell_command(&config),
+            "exec bundle exec rackup -o 127.0.0.1 -p 1207"
+        );
+        assert!((service.env)(&config)
+            .into_iter()
+            .any(|(key, value)| key == "CONFIG_DIR" && value == "/data/rdf-config"));
+    }
+
+    #[test]
+    fn toggomcp_is_disabled_when_rdf_config_mcp_is_selected() {
+        let services =
+            active_services(&test_config(SparqlBackend::QLever, McpServer::RdfConfigMcp));
+        let names = services.iter().map(|spec| spec.name).collect::<Vec<_>>();
+
+        assert!(names.contains(&"rdf-config-mcp"));
+        assert!(!names.contains(&"togomcp"));
+    }
+
+    #[test]
+    fn rdf_config_mcp_is_disabled_when_togomcp_is_selected() {
+        let services = active_services(&test_config(SparqlBackend::QLever, McpServer::Togomcp));
+        let names = services.iter().map(|spec| spec.name).collect::<Vec<_>>();
+
+        assert!(names.contains(&"togomcp"));
+        assert!(!names.contains(&"rdf-config-mcp"));
     }
 }
