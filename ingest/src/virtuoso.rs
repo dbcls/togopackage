@@ -8,8 +8,6 @@ use std::thread::sleep;
 use std::time::Duration;
 use tempfile::NamedTempFile;
 
-const DEFAULT_GRAPH_IRI: &str = "urn:togopackage:default-graph";
-
 pub fn prepare_virtuoso(paths: &RuntimePaths, manifest: &InputManifest) -> Result<(), String> {
     let db_dir = paths.virtuoso_data_dir.join("db");
     let stamp_path = paths.virtuoso_data_dir.join(".loaded-input-hash");
@@ -139,7 +137,6 @@ DefaultClientCharset = UTF-8
 ResultSetMaxRows = 10000
 MaxQueryCostEstimationTime = 400
 MaxQueryExecutionTime = 60
-DefaultGraph = {default_graph}
 ",
         db_dir = db_dir.display(),
         data_dir = data_dir.display(),
@@ -153,7 +150,6 @@ DefaultGraph = {default_graph}
         max_query_mem = tuning.max_query_mem,
         server_threads = tuning.server_threads,
         max_client_connections = tuning.max_client_connections,
-        default_graph = DEFAULT_GRAPH_IRI,
     )
 }
 
@@ -329,18 +325,15 @@ fn push_load_sql_lines(lines: &mut Vec<String>, source: &ManifestSource) -> Resu
             "ld_dir({}, {}, {});",
             sql_string(Some(&directory)),
             sql_string(Some(&file_name)),
-            sql_string(Some(&target_graph_iri(source)))
+            sql_string(target_graph_iri(source).as_deref())
         )),
         other => return Err(format!("Unsupported format in source manifest: {other}")),
     }
     Ok(())
 }
 
-fn target_graph_iri(source: &ManifestSource) -> String {
-    source
-        .graph
-        .clone()
-        .unwrap_or_else(|| String::from(DEFAULT_GRAPH_IRI))
+fn target_graph_iri(source: &ManifestSource) -> Option<String> {
+    source.graph.clone()
 }
 
 fn split_source_path(path: &str) -> Result<(String, String), String> {
@@ -393,7 +386,7 @@ mod tests {
             lines,
             vec![
                 String::from("ld_dir('/data/sources', 'demo.ttl', 'http://example.org/graph/demo');"),
-                String::from("ld_dir('/data/sources', 'demo.nt', 'urn:togopackage:default-graph');"),
+                String::from("ld_dir('/data/sources', 'demo.nt', NULL);"),
                 String::from("rdf_loader_run();"),
                 String::from("checkpoint;"),
             ]
@@ -401,7 +394,7 @@ mod tests {
     }
 
     #[test]
-    fn load_sql_lines_uses_default_graph_for_ungraphed_sources() {
+    fn load_sql_lines_uses_null_graph_for_ungraphed_sources() {
         let manifest = InputManifest {
             sources: vec![ManifestSource {
                 path: String::from("/data/sources/demo.ttl"),
@@ -417,7 +410,7 @@ mod tests {
         assert_eq!(
             lines,
             vec![
-                String::from("ld_dir('/data/sources', 'demo.ttl', 'urn:togopackage:default-graph');"),
+                String::from("ld_dir('/data/sources', 'demo.ttl', NULL);"),
                 String::from("rdf_loader_run();"),
                 String::from("checkpoint;"),
             ]

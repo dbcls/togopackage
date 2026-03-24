@@ -193,6 +193,7 @@ Rules:
 - Glob matches are expanded in sorted order
 - Directories matched by a glob are ignored
 - `graph` is optional. If omitted, data is loaded into the default graph
+- Virtuoso does not pin a special `DefaultGraph`; its default SPARQL dataset uses all loaded graphs
 - `config.yaml` is parsed strictly by the supervisor. Unknown keys or invalid YAML cause startup to fail
 
 ## Open the Services
