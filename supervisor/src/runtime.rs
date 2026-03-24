@@ -16,7 +16,7 @@ use crate::dashboard::{
     spawn_dashboard_server, update_service, ExitInfo, SharedDashboardState,
 };
 use crate::logging::write_aggregated_log_line;
-use crate::services::{ServiceCommand, ServiceSpec, SERVICES};
+use crate::services::{active_services, ServiceCommand, ServiceSpec};
 
 const POLL_INTERVAL: Duration = Duration::from_millis(250);
 const BASE_BACKOFF: Duration = Duration::from_secs(1);
@@ -503,12 +503,13 @@ fn finish_shutdown(services: &mut HashMap<&'static str, ManagedService>) {
 
 pub fn run_supervisor(config: &Config) -> Result<(), String> {
     install_signal_handlers();
-    let dashboard_state = Arc::new(Mutex::new(initial_snapshot()));
+    let active_specs = active_services(config);
+    let dashboard_state = Arc::new(Mutex::new(initial_snapshot(config)));
     spawn_dashboard_server(config, dashboard_state.clone())?;
 
     let mut services = HashMap::new();
 
-    for spec in SERVICES {
+    for spec in &active_specs {
         services.insert(
             spec.name,
             ManagedService {
@@ -529,7 +530,7 @@ pub fn run_supervisor(config: &Config) -> Result<(), String> {
         if SHUTTING_DOWN.load(Ordering::SeqCst) {
             log_supervisor_event("event=shutdown-start");
             record_event(&dashboard_state, String::from("event=shutdown-start"));
-            for spec in SERVICES {
+            for spec in &active_specs {
                 update_service(&dashboard_state, spec.name, |snapshot| {
                     snapshot.state = String::from("stopping");
                     snapshot.pid = None;
@@ -544,7 +545,7 @@ pub fn run_supervisor(config: &Config) -> Result<(), String> {
             return Ok(());
         }
 
-        for spec in SERVICES {
+        for spec in &active_specs {
             let deps_ready = services
                 .get(spec.name)
                 .map(|service| dependencies_ready(&services, service))

@@ -106,7 +106,7 @@ The container publishes:
 
 `/data/config.yaml` is the main runtime input definition.
 Each `source` entry must specify `path`.
-You can also choose which backend `sparql-proxy` forwards to with `sparql_backend`.
+You can choose which SPARQL backend TogoPackage uses with `sparql_backend`.
 
 In the examples above, the host-side bind-mounted directory is `./data.example` or `/path/to/data`.
 TogoPackage reads `config.yaml` from that mounted directory.
@@ -161,7 +161,8 @@ source:
 Rules:
 
 - `sparql_backend` is optional. Supported values: `qlever`, `virtuoso`
-- `sparql_backend` controls which backend `sparql-proxy` uses for `/sparql`
+- `sparql_backend` selects the backend used by TogoPackage for SPARQL serving and data preparation
+- `sparql-proxy` forwards `/sparql` to the backend selected by `sparql_backend`
 - Default `sparql_backend`: `qlever`
 - `qlever` is optional
 - `qlever.server` is optional
@@ -250,8 +251,9 @@ Important behavior:
 
 This section summarizes what TogoPackage prepares at startup.
 
+- The source manifest at `/path/to/data/sources/source-manifest.json` is prepared regardless of the selected backend
+- QLever or Virtuoso preparation runs according to `sparql_backend`
 - `QLever`
-  - Resolves source files into `/path/to/data/sources/source-manifest.json`
   - Builds or reuses indexes under `/path/to/data/qlever/index`
   - Tracks the current input hash in `/path/to/data/qlever/index/.loaded-input-hash`
   - Rebuilds when `/data/config.yaml` or resolved source files change

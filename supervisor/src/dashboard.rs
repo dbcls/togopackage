@@ -18,7 +18,7 @@ use tokio_stream::StreamExt;
 
 use crate::config::Config;
 use crate::logging::write_aggregated_log_line;
-use crate::services::{ServiceDashboard, ServiceEndpoint, SERVICES};
+use crate::services::{active_services, ServiceDashboard, ServiceEndpoint};
 
 const EVENT_LIMIT: usize = 20;
 const LOG_LIMIT: usize = 500;
@@ -100,8 +100,8 @@ struct DashboardAppState {
 
 static DASHBOARD_STATE: OnceLock<SharedDashboardState> = OnceLock::new();
 
-pub fn initial_snapshot() -> DashboardState {
-    let services = SERVICES
+pub fn initial_snapshot(config: &Config) -> DashboardState {
+    let services = active_services(config)
         .iter()
         .map(|spec| {
             (
@@ -188,7 +188,11 @@ pub fn spawn_dashboard_server(config: &Config, state: SharedDashboardState) -> R
 
 async fn dashboard_page(State(app): State<DashboardAppState>, headers: HeaderMap) -> Html<String> {
     let snapshot = current_snapshot(&app.config, &app.state);
-    Html(render_html(&snapshot, &request_base_url(&headers)))
+    Html(render_html(
+        &app.config,
+        &snapshot,
+        &request_base_url(&headers),
+    ))
 }
 
 async fn logs_page(State(app): State<DashboardAppState>, headers: HeaderMap) -> Html<String> {
@@ -318,7 +322,7 @@ fn serialize_event(event: DashboardEvent) -> Option<String> {
 fn current_snapshot(_config: &Config, state: &SharedDashboardState) -> DashboardSnapshot {
     match state.lock() {
         Ok(state) => enrich_snapshot(state.snapshot.clone()),
-        Err(_) => enrich_snapshot(initial_snapshot().snapshot),
+        Err(_) => enrich_snapshot(initial_snapshot(_config).snapshot),
     }
 }
 
@@ -330,8 +334,8 @@ fn status_snapshot(snapshot: DashboardSnapshot) -> StatusSnapshot {
     }
 }
 
-fn render_html(snapshot: &DashboardSnapshot, base_url: &str) -> String {
-    let service_cards = dashboard_cards()
+fn render_html(config: &Config, snapshot: &DashboardSnapshot, base_url: &str) -> String {
+    let service_cards = dashboard_cards(config)
         .iter()
         .map(|card| render_service_card(snapshot, card, base_url))
         .collect::<Vec<_>>()
@@ -783,8 +787,8 @@ fn render_endpoints(endpoints: &[ServiceEndpoint], base_url: &str) -> String {
     format!(r#"<div class="endpoints"><div class="endpoint-list">{items}</div></div>"#)
 }
 
-fn dashboard_cards() -> Vec<ServiceCard> {
-    let mut cards = SERVICES
+fn dashboard_cards(config: &Config) -> Vec<ServiceCard> {
+    let mut cards = active_services(config)
         .iter()
         .filter(|spec| spec.dashboard.show)
         .map(|spec| ServiceCard {

@@ -385,7 +385,9 @@ mod tests {
         assert_eq!(
             lines,
             vec![
-                String::from("ld_dir('/data/sources', 'demo.ttl', 'http://example.org/graph/demo');"),
+                String::from(
+                    "ld_dir('/data/sources', 'demo.ttl', 'http://example.org/graph/demo');"
+                ),
                 String::from("ld_dir('/data/sources', 'demo.nt', NULL);"),
                 String::from("rdf_loader_run();"),
                 String::from("checkpoint;"),

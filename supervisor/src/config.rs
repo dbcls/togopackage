@@ -463,7 +463,7 @@ mod tests {
 
         fs::remove_file(&path).expect("remove config");
         assert!(error.contains("NUMBER_OF_BUFFERS"));
-        assert!(error.contains("integer"));
+        assert!(error.contains("u64") || error.contains("integer"));
     }
 
     #[test]

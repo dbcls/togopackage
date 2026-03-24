@@ -56,8 +56,40 @@ pub const SERVICES: &[ServiceSpec] = &[
     virtuoso::SPEC,
 ];
 
+const QLEVER_PROXY_DEPENDENCIES: &[&str] = &["qlever"];
+const VIRTUOSO_PROXY_DEPENDENCIES: &[&str] = &["virtuoso"];
+
+pub fn active_services(config: &Config) -> Vec<ServiceSpec> {
+    SERVICES
+        .iter()
+        .filter_map(|spec| {
+            if !service_enabled(spec.name, config) {
+                return None;
+            }
+
+            let mut resolved = *spec;
+            if resolved.name == "sparql-proxy" {
+                resolved.depends_on = match config.sparql_backend {
+                    crate::config::SparqlBackend::QLever => QLEVER_PROXY_DEPENDENCIES,
+                    crate::config::SparqlBackend::Virtuoso => VIRTUOSO_PROXY_DEPENDENCIES,
+                };
+            }
+
+            Some(resolved)
+        })
+        .collect()
+}
+
+fn service_enabled(name: &str, config: &Config) -> bool {
+    match (name, config.sparql_backend) {
+        ("qlever", crate::config::SparqlBackend::Virtuoso) => false,
+        ("virtuoso", crate::config::SparqlBackend::QLever) => false,
+        _ => true,
+    }
+}
+
 pub fn print_plan(config: &Config) {
-    for spec in SERVICES {
+    for spec in active_services(config) {
         println!("{} -> bash -c {}", spec.name, spec.shell_command(config));
     }
 }
@@ -98,4 +130,95 @@ pub fn base_env(config: &Config) -> Vec<(&'static str, String)> {
         ),
         ("RDF_CONFIG_BASE_DIR", config.rdf_config_base_dir.clone()),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::active_services;
+    use crate::config::{Config, SparqlBackend};
+
+    fn test_config(backend: SparqlBackend) -> Config {
+        Config {
+            togopackage_config: String::from("/data/config.yaml"),
+            togopackage_defaults_dir: String::from("/togo/defaults"),
+            rdf_config_base_dir: String::from("/data/rdf-config"),
+            qlever_access_token: None,
+            qlever_memory_for_queries: Some(String::from("2G")),
+            qlever_index_base: String::from("/data/qlever/index/default"),
+            source_data_dir: String::from("/data/sources"),
+            source_manifest_path: String::from("/data/sources/source-manifest.json"),
+            qlever_port: String::from("7001"),
+            qlever_timeout: None,
+            qlever_cache_max_size: None,
+            qlever_cache_max_size_single_entry: None,
+            qlever_cache_max_num_entries: None,
+            qlever_persist_updates: false,
+            sparql_proxy_port: String::from("7002"),
+            supervisor_http_port: String::from("7005"),
+            sparql_proxy_max_limit: String::from("10000"),
+            sparql_proxy_dir: String::from("/vendor/sparql-proxy"),
+            sparqlist_port: String::from("7003"),
+            sparqlist_admin_password: String::from("sparqlist"),
+            sparqlist_root_path: String::from("/sparqlist/"),
+            sparqlist_repository_path: String::from("/data/sparqlist"),
+            sparqlist_dir: String::from("/vendor/sparqlist"),
+            grasp_port: String::from("7004"),
+            grasp_root_path: String::from("/grasp"),
+            grasp_resources_dir: String::from("/data/grasp"),
+            grasp_dir: String::from("/vendor/grasp"),
+            togomcp_port: String::from("8000"),
+            togomcp_dir: String::from("/vendor/togomcp"),
+            togomcp_data_dir: String::from("/data/togomcp"),
+            togomcp_mie_sync_source_dir: String::from("/data/togomcp/mie"),
+            virtuoso_http_port: String::from("8890"),
+            virtuoso_isql_port: String::from("1111"),
+            virtuoso_data_dir: String::from("/data/virtuoso"),
+            virtuoso_ini_path: String::from("/tmp/togopackage-virtuoso/virtuoso.ini"),
+            virtuoso_dba_password: String::from("dba"),
+            virtuoso_number_of_buffers: String::from("1500000"),
+            virtuoso_max_dirty_buffers: String::from("1125000"),
+            virtuoso_max_checkpoint_remap: String::from("1000"),
+            virtuoso_checkpoint_interval: String::from("60"),
+            virtuoso_max_query_mem: String::from("2G"),
+            virtuoso_server_threads: String::from("10"),
+            virtuoso_max_client_connections: String::from("10"),
+            tabulae_queries_dir: String::from("/data/tabulae/queries"),
+            tabulae_dist_dir: String::from("/data/tabulae/dist"),
+            sparql_backend: backend,
+        }
+    }
+
+    #[test]
+    fn qlever_backend_excludes_virtuoso_service() {
+        let services = active_services(&test_config(SparqlBackend::QLever));
+        let names = services.iter().map(|spec| spec.name).collect::<Vec<_>>();
+
+        assert!(names.contains(&"qlever"));
+        assert!(!names.contains(&"virtuoso"));
+        assert_eq!(
+            services
+                .iter()
+                .find(|spec| spec.name == "sparql-proxy")
+                .expect("sparql-proxy service")
+                .depends_on,
+            &["qlever"]
+        );
+    }
+
+    #[test]
+    fn virtuoso_backend_excludes_qlever_service() {
+        let services = active_services(&test_config(SparqlBackend::Virtuoso));
+        let names = services.iter().map(|spec| spec.name).collect::<Vec<_>>();
+
+        assert!(names.contains(&"virtuoso"));
+        assert!(!names.contains(&"qlever"));
+        assert_eq!(
+            services
+                .iter()
+                .find(|spec| spec.name == "sparql-proxy")
+                .expect("sparql-proxy service")
+                .depends_on,
+            &["virtuoso"]
+        );
+    }
 }
