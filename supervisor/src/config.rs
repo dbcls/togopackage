@@ -33,6 +33,10 @@ struct RuntimeConfigFile {
     #[serde(default)]
     sparql_backend: Option<String>,
     #[serde(default)]
+    sparql_proxy: SparqlProxyConfigFile,
+    #[serde(default)]
+    sparqlist: SparqlistConfigFile,
+    #[serde(default)]
     qlever: QleverConfigFile,
     #[serde(default)]
     virtuoso: VirtuosoConfigFile,
@@ -45,6 +49,20 @@ struct RuntimeConfigFile {
 struct QleverConfigFile {
     #[serde(default)]
     server: QleverServerConfigFile,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SparqlProxyConfigFile {
+    #[serde(default, rename = "ADMIN_PASSWORD")]
+    admin_password: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SparqlistConfigFile {
+    #[serde(default, rename = "ADMIN_PASSWORD")]
+    admin_password: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -113,6 +131,7 @@ pub struct Config {
     pub sparql_proxy_port: String,
     pub supervisor_http_port: String,
     pub sparql_proxy_max_limit: String,
+    pub sparql_proxy_admin_password: String,
     pub sparql_proxy_dir: String,
     pub sparqlist_port: String,
     pub sparqlist_admin_password: String,
@@ -190,10 +209,17 @@ impl Config {
             sparql_proxy_port: sparql_proxy_port.clone(),
             supervisor_http_port,
             sparql_proxy_max_limit: String::from("10000"),
+            sparql_proxy_admin_password: runtime_config
+                .sparql_proxy
+                .admin_password
+                .unwrap_or_else(|| String::from("password")),
             sparql_proxy_dir: String::from("/vendor/sparql-proxy"),
 
             sparqlist_port: String::from("7003"),
-            sparqlist_admin_password: String::from("sparqlist"),
+            sparqlist_admin_password: runtime_config
+                .sparqlist
+                .admin_password
+                .unwrap_or_default(),
             sparqlist_root_path: String::from("/sparqlist/"),
             sparqlist_repository_path: String::from("/data/sparqlist"),
             sparqlist_dir: String::from("/vendor/sparqlist"),
@@ -412,6 +438,28 @@ mod tests {
     }
 
     #[test]
+    fn reads_sparql_proxy_and_sparqlist_settings_from_config_yaml() {
+        let path = temp_config_path("togopackage-config");
+        fs::write(
+            &path,
+            concat!(
+                "source: []\n",
+                "sparql_proxy:\n",
+                "  ADMIN_PASSWORD: secret-proxy\n",
+                "sparqlist:\n",
+                "  ADMIN_PASSWORD: secret-sparqlist\n",
+            ),
+        )
+        .expect("write config");
+
+        let config = Config::from_config_path(&path).expect("config should parse");
+
+        fs::remove_file(&path).expect("remove config");
+        assert_eq!(config.sparql_proxy_admin_password, "secret-proxy");
+        assert_eq!(config.sparqlist_admin_password, "secret-sparqlist");
+    }
+
+    #[test]
     fn reads_virtuoso_server_settings_from_config_yaml() {
         let path = temp_config_path("togopackage-config");
         fs::write(
@@ -482,6 +530,18 @@ mod tests {
         assert_eq!(config.qlever_cache_max_size_single_entry, None);
         assert_eq!(config.qlever_cache_max_num_entries, None);
         assert!(!config.qlever_persist_updates);
+    }
+
+    #[test]
+    fn sparql_proxy_and_sparqlist_settings_fall_back_to_defaults() {
+        let path = temp_config_path("togopackage-config");
+        fs::write(&path, "source: []\n").expect("write config");
+
+        let config = Config::from_config_path(&path).expect("config should parse");
+
+        fs::remove_file(&path).expect("remove config");
+        assert_eq!(config.sparql_proxy_admin_password, "password");
+        assert_eq!(config.sparqlist_admin_password, "");
     }
 
     #[test]

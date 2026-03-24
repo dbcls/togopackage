@@ -116,6 +116,10 @@ You can either use `./data.example` directly or use it as a reference when prepa
 
 ```yaml
 sparql_backend: qlever
+sparql_proxy:
+  ADMIN_PASSWORD: your-sparql-proxy-admin-password
+sparqlist:
+  ADMIN_PASSWORD: your-sparqlist-admin-password
 qlever:
   server:
     ACCESS_TOKEN: your-access-token
@@ -164,6 +168,8 @@ Rules:
 - `sparql_backend` selects the backend used by TogoPackage for SPARQL serving and data preparation
 - `sparql-proxy` forwards `/sparql` to the backend selected by `sparql_backend`
 - Default `sparql_backend`: `qlever`
+- `sparql_proxy` is optional
+- `sparql_proxy.ADMIN_PASSWORD` is optional. Default: `password`
 - `qlever` is optional
 - `qlever.server` is optional
 - `qlever.server.ACCESS_TOKEN` is optional. If omitted, QLever uses its own default behavior
@@ -173,6 +179,8 @@ Rules:
 - `qlever.server.CACHE_MAX_SIZE_SINGLE_ENTRY` is optional. If omitted, TogoPackage does not pass `--cache-max-size-single-entry`
 - `qlever.server.CACHE_MAX_NUM_ENTRIES` is optional. If omitted, TogoPackage does not pass `--cache-max-num-entries`
 - `qlever.server.PERSIST_UPDATES` is optional. Only `true` adds `--persist-updates`
+- `sparqlist` is optional
+- `sparqlist.ADMIN_PASSWORD` is optional. If omitted, SPARQList admin features are disabled
 - `virtuoso` is optional
 - `virtuoso.server` is optional
 - `virtuoso.server.DBA_PASSWORD` is optional. Default: `dba`

@@ -13,6 +13,11 @@ fn env(config: &Config) -> Vec<(&'static str, String)> {
         ("QLEVER_PORT", config.qlever_port.clone()),
         ("SPARQL_PROXY_PORT", config.sparql_proxy_port.clone()),
         ("ROOT_PATH", String::from("/")),
+        ("ADMIN_PASSWORD", config.sparql_proxy_admin_password.clone()),
+        (
+            "SPARQL_PROXY_ADMIN_PASSWORD",
+            config.sparql_proxy_admin_password.clone(),
+        ),
         ("MAX_LIMIT", config.sparql_proxy_max_limit.clone()),
         (
             "SPARQL_PROXY_MAX_LIMIT",

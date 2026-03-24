@@ -1,7 +1,14 @@
 sparql_backend: qlever
+
 qlever:
   server:
     MEMORY_FOR_QUERIES: 2G
+
+sparql_proxy:
+  ADMIN_PASSWORD: sparql-proxy-admin-password
+
+sparqlist:
+  ADMIN_PASSWORD: sparqlist-admin-password
 
 source:
   - name: Demo dataset
