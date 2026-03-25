@@ -10,3 +10,6 @@
 !/rdf-config/demo/sparql.yaml
 !/sources/
 !/sources/demo.ttl
+!/togomcp/
+!/togomcp/mie/
+!/togomcp/mie/demo.yaml

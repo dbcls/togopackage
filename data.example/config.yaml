@@ -1,5 +1,5 @@
 sparql_backend: qlever
-mcp_server: rdf-config-mcp
+mcp_server: togomcp
 
 qlever:
   server:

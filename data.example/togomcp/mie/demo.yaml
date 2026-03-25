@@ -1,0 +1,298 @@
+schema_info:
+  title: Demo RDF Dataset
+  description: |
+    This demo dataset contains two main entity types: people and projects.
+    People are modeled as both ex:Person and foaf:Person with names, mailboxes, social links, and project memberships.
+    Projects carry labels, descriptions, and explicit member links back to people.
+    The dataset is intended for small-scale local testing of TogoPackage and TogoMCP query workflows.
+  endpoint: http://127.0.0.1:7002/sparql
+  base_uri: http://example.org/resource/
+  graphs:
+    - http://example.org/graph/demo
+  kw_search_tools:
+    - sparql
+  version:
+    mie_version: "1.1"
+    mie_created: "2026-03-25"
+    data_version: "demo"
+    update_frequency: "Manual"
+  license:
+    data_license: "CC0 1.0"
+    license_url: https://creativecommons.org/publicdomain/zero/1.0/
+  access:
+    rate_limiting: "Local deployment dependent"
+    max_query_timeout: "Deployment dependent"
+    backend: "QLever"
+
+shape_expressions: |
+  PREFIX ex: <http://example.org/resource/>
+  PREFIX dcterms: <http://purl.org/dc/terms/>
+  PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+  PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+  PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+  <PersonShape> {
+    a [ ex:Person foaf:Person ] ;
+    foaf:name xsd:string ;
+    foaf:mbox IRI ;
+    ex:knows @<PersonShape> * ;
+    ex:memberOf @<ProjectShape> +
+  }
+
+  <ProjectShape> {
+    a [ ex:Project ] ;
+    rdfs:label xsd:string ;
+    dcterms:description xsd:string ;
+    ex:hasMember @<PersonShape> +
+  }
+
+sample_rdf_entries:
+  - title: "Person class declaration"
+    description: "The dataset declares a custom class for people used alongside FOAF typing."
+    rdf: |
+      @prefix ex: <http://example.org/resource/> .
+      @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+      ex:Person a rdfs:Class ;
+        rdfs:label "Person"@en .
+
+  - title: "Project class declaration"
+    description: "Projects are modeled as a separate class with an English label."
+    rdf: |
+      @prefix ex: <http://example.org/resource/> .
+      @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+      ex:Project a rdfs:Class ;
+        rdfs:label "Project"@en .
+
+  - title: "Person instance with links"
+    description: "A person has a name, mailbox, social links, and project membership."
+    rdf: |
+      @prefix ex: <http://example.org/resource/> .
+      @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+
+      ex:alice a ex:Person, foaf:Person ;
+        foaf:name "Alice" ;
+        foaf:mbox <mailto:alice@example.org> ;
+        ex:knows ex:bob ;
+        ex:memberOf ex:demo_project .
+
+  - title: "Project instance with description"
+    description: "A project includes a label, a textual description, and member links."
+    rdf: |
+      @prefix dcterms: <http://purl.org/dc/terms/> .
+      @prefix ex: <http://example.org/resource/> .
+      @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+      ex:demo_project a ex:Project ;
+        rdfs:label "Demo Project"@en ;
+        dcterms:description "A small RDF dataset for TogoPackage demos."@en ;
+        ex:hasMember ex:alice, ex:bob, ex:carol .
+
+  - title: "Second project membership"
+    description: "A second project demonstrates that one person can participate in multiple projects."
+    rdf: |
+      @prefix dcterms: <http://purl.org/dc/terms/> .
+      @prefix ex: <http://example.org/resource/> .
+      @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+      ex:data_ops_project a ex:Project ;
+        rdfs:label "Data Ops Project"@en ;
+        dcterms:description "A second RDF project for TogoPackage demos."@en ;
+        ex:hasMember ex:carol .
+
+sparql_query_examples:
+  - title: "List all people"
+    description: |
+      Retrieve every person instance with the displayed name.
+      This is the simplest browse query for the demo graph.
+    question: "Which people are in the demo dataset?"
+    complexity: basic
+    sparql: |
+      PREFIX ex: <http://example.org/resource/>
+      PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+      SELECT ?person ?name
+      FROM <http://example.org/graph/demo>
+      WHERE {
+        ?person a ex:Person ;
+                foaf:name ?name .
+      }
+      ORDER BY ?name
+      LIMIT 20
+
+  - title: "List all projects"
+    description: |
+      Retrieve project resources with labels and descriptions.
+      This provides a compact overview of the project entities.
+    question: "What projects are available in the demo dataset?"
+    complexity: basic
+    sparql: |
+      PREFIX ex: <http://example.org/resource/>
+      PREFIX dcterms: <http://purl.org/dc/terms/>
+      PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+      SELECT ?project ?label ?description
+      FROM <http://example.org/graph/demo>
+      WHERE {
+        ?project a ex:Project ;
+                 rdfs:label ?label ;
+                 dcterms:description ?description .
+      }
+      ORDER BY ?label
+      LIMIT 20
+
+  - title: "Show person memberships"
+    description: |
+      Join people to their project memberships.
+      This demonstrates the ex:memberOf relationship from person to project.
+    question: "Which project is each person a member of?"
+    complexity: intermediate
+    sparql: |
+      PREFIX ex: <http://example.org/resource/>
+      PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+      PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+      SELECT ?personName ?projectLabel
+      FROM <http://example.org/graph/demo>
+      WHERE {
+        ?person a ex:Person ;
+                foaf:name ?personName ;
+                ex:memberOf ?project .
+        ?project a ex:Project ;
+                 rdfs:label ?projectLabel .
+      }
+      ORDER BY ?personName ?projectLabel
+      LIMIT 50
+
+  - title: "Show project members"
+    description: |
+      Traverse the inverse direction from projects to their members.
+      This demonstrates the ex:hasMember predicate.
+    question: "Who belongs to each project?"
+    complexity: intermediate
+    sparql: |
+      PREFIX ex: <http://example.org/resource/>
+      PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+      PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+      SELECT ?projectLabel ?memberName
+      FROM <http://example.org/graph/demo>
+      WHERE {
+        ?project a ex:Project ;
+                 rdfs:label ?projectLabel ;
+                 ex:hasMember ?member .
+        ?member a ex:Person ;
+                foaf:name ?memberName .
+      }
+      ORDER BY ?projectLabel ?memberName
+      LIMIT 50
+
+  - title: "Find mutual acquaintance pairs"
+    description: |
+      Identify person pairs that point to each other with ex:knows.
+      The lexical filter removes duplicated pair orderings.
+    question: "Which people know each other mutually?"
+    complexity: intermediate
+    sparql: |
+      PREFIX ex: <http://example.org/resource/>
+      PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+      SELECT ?name1 ?name2
+      FROM <http://example.org/graph/demo>
+      WHERE {
+        ?person1 a ex:Person ;
+                 foaf:name ?name1 ;
+                 ex:knows ?person2 .
+        ?person2 a ex:Person ;
+                 foaf:name ?name2 ;
+                 ex:knows ?person1 .
+        FILTER(STR(?person1) < STR(?person2))
+      }
+      ORDER BY ?name1 ?name2
+      LIMIT 20
+
+  - title: "Keyword filter on project descriptions"
+    description: |
+      Search project descriptions with a simple case-insensitive substring filter.
+      This is the recommended keyword pattern for the local demo on QLever.
+    question: "Which projects mention demo in their description?"
+    complexity: advanced
+    sparql: |
+      PREFIX ex: <http://example.org/resource/>
+      PREFIX dcterms: <http://purl.org/dc/terms/>
+      PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+      SELECT ?project ?label ?description
+      FROM <http://example.org/graph/demo>
+      WHERE {
+        ?project a ex:Project ;
+                 rdfs:label ?label ;
+                 dcterms:description ?description .
+        FILTER(CONTAINS(LCASE(STR(?description)), "demo"))
+      }
+      ORDER BY ?label
+      LIMIT 20
+
+  - title: "Count members per project"
+    description: |
+      Aggregate project memberships to compare project size.
+      This query is useful for verifying consistency between person and project links.
+    question: "How many members does each project have?"
+    complexity: advanced
+    sparql: |
+      PREFIX ex: <http://example.org/resource/>
+      PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+      SELECT ?projectLabel (COUNT(DISTINCT ?member) AS ?memberCount)
+      FROM <http://example.org/graph/demo>
+      WHERE {
+        ?project a ex:Project ;
+                 rdfs:label ?projectLabel ;
+                 ex:hasMember ?member .
+      }
+      GROUP BY ?projectLabel
+      ORDER BY DESC(?memberCount) ?projectLabel
+      LIMIT 20
+
+cross_database_queries:
+  shared_endpoint: local
+  co_located_databases: []
+  examples: []
+
+cross_references:
+  description: "This demo dataset does not declare explicit external database links."
+  examples: []
+
+architectural_notes:
+  - pattern: "Bidirectional membership modeling"
+    explanation: "Project membership is represented in both directions with ex:memberOf and ex:hasMember for simple query examples."
+  - pattern: "Mixed class typing for people"
+    explanation: "Person instances use both the local ex:Person class and foaf:Person to demonstrate local schema plus common vocabularies."
+
+data_statistics:
+  entity_counts:
+    person_instances: 3
+    project_instances: 2
+    person_class_resources: 1
+    project_class_resources: 1
+  relationship_counts:
+    knows_links: 4
+    member_of_links: 4
+    has_member_links: 4
+
+anti_patterns:
+  - title: "Ignoring the named graph"
+    problem: "Queries without the demo graph may miss results depending on the endpoint configuration."
+    recommendation: "Use FROM <http://example.org/graph/demo> or an equivalent GRAPH clause when querying this dataset."
+  - title: "Treating mailboxes as literals"
+    problem: "foaf:mbox values are IRIs, not plain strings."
+    recommendation: "Bind mailbox values as IRIs and apply STR() only when string comparison is required."
+
+common_errors:
+  - error: "No results when querying foaf:Person only"
+    cause: "The query omitted the named graph or targeted the wrong endpoint."
+    fix: "Run the query against the local sparql-proxy endpoint and include the demo graph."
+  - error: "Duplicated acquaintance pairs"
+    cause: "Mutual ex:knows links produce both pair orderings."
+    fix: "Apply a stable ordering filter such as FILTER(STR(?person1) < STR(?person2))."
