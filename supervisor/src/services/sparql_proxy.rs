@@ -11,6 +11,7 @@ fn env(config: &Config) -> Vec<(&'static str, String)> {
     vec![
         ("PORT", config.sparql_proxy_port.clone()),
         ("QLEVER_PORT", config.qlever_port.clone()),
+        ("PASSTHROUGH", String::from("true")),
         ("SPARQL_PROXY_PORT", config.sparql_proxy_port.clone()),
         ("ROOT_PATH", String::from("/")),
         ("ADMIN_PASSWORD", config.sparql_proxy_admin_password.clone()),
