@@ -1,4 +1,5 @@
 sparql_backend: qlever
+mcp_server: rdf-config-mcp
 
 qlever:
   server:

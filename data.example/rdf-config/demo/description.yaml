@@ -1,0 +1,11 @@
+dataset:
+  name: Demo Dataset
+  description: Small RDF dataset for TogoPackage.
+variables:
+  Person: A person resource in the demo dataset.
+  Project: A project resource in the demo dataset.
+  name: The person's display name.
+  email: The person's email address as a mailto IRI.
+  project: The project associated with a person.
+  label: The human-readable label of a project.
+  description: A short text description of a project.
