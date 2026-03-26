@@ -8,6 +8,20 @@ use std::thread::sleep;
 use std::time::Duration;
 use tempfile::NamedTempFile;
 
+const PUBLIC_ENDPOINT_POLICY_SQL: &str = r#"create procedure DB.DBA.TOGOPACKAGE_ENSURE_PUBLIC_SPARQL_POLICY ()
+{
+  declare state, msg, meta, rows any;
+  state := '00000';
+  exec ('REVOKE SPARQL_UPDATE FROM "SPARQL"', state, msg, vector (), 0, meta, rows);
+  if (state <> '00000' and state <> '42000')
+    signal (state, msg);
+}
+;
+DB.DBA.TOGOPACKAGE_ENSURE_PUBLIC_SPARQL_POLICY();
+drop procedure DB.DBA.TOGOPACKAGE_ENSURE_PUBLIC_SPARQL_POLICY;
+checkpoint;
+"#;
+
 pub fn prepare_virtuoso(paths: &RuntimePaths, manifest: &InputManifest) -> Result<(), String> {
     let db_dir = paths.virtuoso_data_dir.join("db");
     let stamp_path = paths.virtuoso_data_dir.join(".loaded-input-hash");
@@ -39,12 +53,14 @@ pub fn prepare_virtuoso(paths: &RuntimePaths, manifest: &InputManifest) -> Resul
     if read_stamp(&stamp_path)?.as_deref() == Some(manifest.input_hash.as_str())
         && virtuoso_state_exists(&db_dir)
     {
+        ensure_public_endpoint_policy(paths)?;
         log_up_to_date("Virtuoso");
         return Ok(());
     }
 
     eprintln!("Virtuoso data import started.");
     import_virtuoso_data(paths, manifest)?;
+    ensure_public_endpoint_policy(paths)?;
     write_stamp(&stamp_path, &manifest.input_hash)?;
     eprintln!("Virtuoso data import completed successfully.");
 
@@ -195,6 +211,18 @@ fn import_virtuoso_data(paths: &RuntimePaths, manifest: &InputManifest) -> Resul
     })();
     stop_virtuoso(paths, &mut child)?;
     import_result
+}
+
+fn ensure_public_endpoint_policy(paths: &RuntimePaths) -> Result<(), String> {
+    eprintln!("Applying Virtuoso public endpoint policy.");
+    let mut child = start_virtuoso(paths)?;
+    let policy_result: Result<(), String> = (|| {
+        wait_for_virtuoso_http(paths, &mut child)?;
+        run_isql_script(paths, PUBLIC_ENDPOINT_POLICY_SQL)?;
+        Ok(())
+    })();
+    stop_virtuoso(paths, &mut child)?;
+    policy_result
 }
 
 fn start_virtuoso(paths: &RuntimePaths) -> Result<Child, String> {

@@ -184,7 +184,7 @@ Rules:
 - `qlever.server.CACHE_MAX_SIZE` is optional. If omitted, TogoPackage does not pass `--cache-max-size`
 - `qlever.server.CACHE_MAX_SIZE_SINGLE_ENTRY` is optional. If omitted, TogoPackage does not pass `--cache-max-size-single-entry`
 - `qlever.server.CACHE_MAX_NUM_ENTRIES` is optional. If omitted, TogoPackage does not pass `--cache-max-num-entries`
-- `qlever.server.PERSIST_UPDATES` is optional. Only `true` adds `--persist-updates`
+- `qlever.server.PERSIST_UPDATES` is optional. Default: `false`. Only `true` adds `--persist-updates`
 - `sparqlist` is optional
 - `sparqlist.ADMIN_PASSWORD` is optional. If omitted, SPARQList admin features are disabled
 - `virtuoso` is optional
@@ -197,6 +197,7 @@ Rules:
 - `virtuoso.server.MAX_QUERY_MEM` is optional. Default: `2G`
 - `virtuoso.server.SERVER_THREADS` is optional. Default: `10`
 - `virtuoso.server.MAX_CLIENT_CONNECTIONS` is optional. Default: `10`
+- TogoPackage revokes `SPARQL_UPDATE` from Virtuoso's public `SPARQL` account during setup so the public endpoint stays read-only
 - Virtuoso numeric tuning values are YAML integers. Use strings only for values with units such as `MAX_QUERY_MEM`
 - Virtuoso ports and data paths cannot be changed from `config.yaml` because they are tied to other runtime services and exposed port assumptions
 - `format` can be specified for each `source`

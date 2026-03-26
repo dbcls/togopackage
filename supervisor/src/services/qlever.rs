@@ -41,7 +41,6 @@ fn command(config: &Config) -> String {
         "--cache-max-num-entries",
         config.qlever_cache_max_num_entries.as_deref(),
     );
-
     if config.qlever_persist_updates {
         args.push(String::from("--persist-updates"));
     }
