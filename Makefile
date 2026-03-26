@@ -23,7 +23,6 @@ build:
 	$(if $(filter docker,$(CONTAINER_RUNTIME)),DOCKER_BUILDKIT=1 )$(CONTAINER_RUNTIME) build -f packaging/Dockerfile -t $(IMAGE) .
 
 start:
-	mkdir -p "$(DATA_DIR_ABS)/tabulae" "$(DATA_DIR_ABS)/virtuoso"
 	$(CONTAINER_RUNTIME) run -d --name $(CONTAINER) $(CONTAINER_RUN_USER_OPTIONS) -p 10005:10005 -p 7001:7001 -p 8890:8890 -v "$(DATA_DIR_ABS):/data" $(IMAGE)
 
 stop:
