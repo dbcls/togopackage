@@ -2,16 +2,10 @@ use crate::config::Config;
 
 use super::{ConfigPath, ServiceCommand, ServiceDashboard, ServiceEndpoint, ServiceSpec};
 
-const ENDPOINTS: &[ServiceEndpoint] = &[
-    ServiceEndpoint {
-        label: "Health Check",
-        path: "/rdf-config-mcp/",
-    },
-    ServiceEndpoint {
-        label: "MCP Endpoint",
-        path: "/rdf-config-mcp/mcp",
-    },
-];
+const ENDPOINTS: &[ServiceEndpoint] = &[ServiceEndpoint {
+    label: "MCP Endpoint",
+    path: "/mcp",
+}];
 
 fn env(config: &Config) -> Vec<(&'static str, String)> {
     vec![
@@ -39,7 +33,7 @@ pub const SPEC: ServiceSpec = ServiceSpec {
     dashboard: ServiceDashboard {
         title: "rdf-config-mcp",
         description: "MCP server for RDF-config datasets",
-        href: Some("/rdf-config-mcp/mcp"),
+        href: Some("/mcp"),
         endpoints: ENDPOINTS,
         show: true,
     },

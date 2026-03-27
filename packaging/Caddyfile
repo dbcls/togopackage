@@ -37,7 +37,8 @@
   handle /grasp* {
     reverse_proxy 127.0.0.1:{$GRASP_PORT}
   }
-  handle_path /rdf-config-mcp* {
+  handle /rdf-config-mcp/mcp* {
+    uri strip_prefix /rdf-config-mcp
     reverse_proxy 127.0.0.1:{$RDF_CONFIG_MCP_PORT}
   }
   handle /mcp* {
