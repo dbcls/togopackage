@@ -42,6 +42,8 @@ struct RuntimeConfigFile {
     #[serde(default)]
     mcp_server: Option<String>,
     #[serde(default)]
+    dashboard: DashboardConfigFile,
+    #[serde(default)]
     sparql_proxy: SparqlProxyConfigFile,
     #[serde(default)]
     sparqlist: SparqlistConfigFile,
@@ -51,6 +53,13 @@ struct RuntimeConfigFile {
     virtuoso: VirtuosoConfigFile,
     #[serde(default, rename = "source")]
     _source: Option<Value>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DashboardConfigFile {
+    #[serde(default)]
+    public_url: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -131,6 +140,7 @@ pub struct Config {
     pub qlever_index_base: String,
     pub source_data_dir: String,
     pub source_manifest_path: String,
+    pub dashboard_public_url: Option<String>,
     pub qlever_port: String,
     pub qlever_timeout: Option<String>,
     pub qlever_cache_max_size: Option<String>,
@@ -205,6 +215,9 @@ impl Config {
             qlever_index_base: String::from("/data/qlever/index/default"),
             source_data_dir: String::from("/data/sources"),
             source_manifest_path: String::from("/data/sources/source-manifest.json"),
+            dashboard_public_url: normalize_dashboard_public_url(
+                runtime_config.dashboard.public_url,
+            )?,
             qlever_port: qlever_port.clone(),
             qlever_timeout: runtime_config.qlever.server.timeout,
             qlever_cache_max_size: runtime_config.qlever.server.cache_max_size,
@@ -347,6 +360,31 @@ impl Config {
     }
 }
 
+fn normalize_dashboard_public_url(url: Option<String>) -> Result<Option<String>, String> {
+    let Some(url) = url else {
+        return Ok(None);
+    };
+
+    let url = url.trim().trim_end_matches('/');
+    if url.is_empty() {
+        return Ok(None);
+    }
+
+    if !(url.starts_with("http://") || url.starts_with("https://")) {
+        return Err(String::from(
+            "dashboard.public_url must be an http:// or https:// base URL",
+        ));
+    }
+
+    if url.contains('?') || url.contains('#') {
+        return Err(String::from(
+            "dashboard.public_url must not include a query string or fragment",
+        ));
+    }
+
+    Ok(Some(url.to_string()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Config, McpServer, SparqlBackend};
@@ -401,6 +439,28 @@ mod tests {
     }
 
     #[test]
+    fn reads_dashboard_public_url_from_config_yaml() {
+        let path = temp_config_path("togopackage-config");
+        fs::write(
+            &path,
+            concat!(
+                "source: []\n",
+                "dashboard:\n",
+                "  public_url: https://public.example.org:10005/\n",
+            ),
+        )
+        .expect("write config");
+
+        let config = Config::from_config_path(&path).expect("config should parse");
+
+        fs::remove_file(&path).expect("remove config");
+        assert_eq!(
+            config.dashboard_public_url.as_deref(),
+            Some("https://public.example.org:10005")
+        );
+    }
+
+    #[test]
     fn invalid_mcp_server_value_falls_back_to_togomcp() {
         let path = temp_config_path("togopackage-config");
         fs::write(&path, "mcp_server: unknown\nsource: []\n").expect("write config");
@@ -435,6 +495,25 @@ mod tests {
 
         fs::remove_file(&path).expect("remove config");
         assert!(error.contains("unknown field `PORT`"));
+    }
+
+    #[test]
+    fn rejects_dashboard_public_url_without_url_scheme() {
+        let path = temp_config_path("togopackage-config");
+        fs::write(
+            &path,
+            concat!(
+                "source: []\n",
+                "dashboard:\n",
+                "  public_url: public.example.org\n",
+            ),
+        )
+        .expect("write config");
+
+        let error = Config::from_config_path(&path).expect_err("host-only value should fail");
+
+        fs::remove_file(&path).expect("remove config");
+        assert!(error.contains("dashboard.public_url"));
     }
 
     #[test]
@@ -581,6 +660,17 @@ mod tests {
         assert_eq!(config.qlever_cache_max_size_single_entry, None);
         assert_eq!(config.qlever_cache_max_num_entries, None);
         assert!(!config.qlever_persist_updates);
+    }
+
+    #[test]
+    fn dashboard_settings_fall_back_to_defaults() {
+        let path = temp_config_path("togopackage-config");
+        fs::write(&path, "source: []\n").expect("write config");
+
+        let config = Config::from_config_path(&path).expect("config should parse");
+
+        fs::remove_file(&path).expect("remove config");
+        assert_eq!(config.dashboard_public_url, None);
     }
 
     #[test]

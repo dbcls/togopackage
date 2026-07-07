@@ -151,6 +151,7 @@ mod tests {
             qlever_index_base: String::from("/data/qlever/index/default"),
             source_data_dir: String::from("/data/sources"),
             source_manifest_path: String::from("/data/sources/source-manifest.json"),
+            dashboard_public_url: None,
             qlever_port: String::from("7001"),
             qlever_timeout: None,
             qlever_cache_max_size: None,

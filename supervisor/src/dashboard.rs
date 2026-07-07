@@ -192,13 +192,16 @@ async fn dashboard_page(State(app): State<DashboardAppState>, headers: HeaderMap
     Html(render_html(
         &app.config,
         &snapshot,
-        &request_base_url(&headers),
+        &request_base_url(&headers, app.config.dashboard_public_url.as_deref()),
     ))
 }
 
 async fn logs_page(State(app): State<DashboardAppState>, headers: HeaderMap) -> Html<String> {
     let snapshot = current_snapshot(&app.config, &app.state);
-    Html(render_logs_html(&snapshot, &request_base_url(&headers)))
+    Html(render_logs_html(
+        &snapshot,
+        &request_base_url(&headers, app.config.dashboard_public_url.as_deref()),
+    ))
 }
 
 async fn status_api(State(app): State<DashboardAppState>) -> Json<StatusSnapshot> {
@@ -1030,7 +1033,11 @@ fn escape_html(input: &str) -> String {
         .replace('"', "&quot;")
 }
 
-fn request_base_url(headers: &HeaderMap) -> String {
+fn request_base_url(headers: &HeaderMap, configured_public_url: Option<&str>) -> String {
+    if let Some(public_url) = configured_public_url.filter(|value| !value.is_empty()) {
+        return public_url.to_string();
+    }
+
     let scheme = headers
         .get("x-forwarded-proto")
         .and_then(|value| value.to_str().ok())
@@ -1054,4 +1061,30 @@ fn absolute_url(base_url: &str, path: &str) -> String {
     }
 
     format!("{base_url}/{path}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::request_base_url;
+    use axum::http::{HeaderMap, HeaderValue};
+
+    #[test]
+    fn request_base_url_uses_configured_public_url_when_present() {
+        let mut headers = HeaderMap::new();
+        headers.insert("host", HeaderValue::from_static("internal.local:10005"));
+        headers.insert("x-forwarded-proto", HeaderValue::from_static("https"));
+
+        assert_eq!(
+            request_base_url(&headers, Some("https://public.example.org:10005")),
+            "https://public.example.org:10005"
+        );
+    }
+
+    #[test]
+    fn request_base_url_falls_back_to_host_header() {
+        let mut headers = HeaderMap::new();
+        headers.insert("host", HeaderValue::from_static("localhost:10005"));
+
+        assert_eq!(request_base_url(&headers, None), "http://localhost:10005");
+    }
 }
