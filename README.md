@@ -109,7 +109,7 @@ Each `source` entry must specify `path`.
 You can choose which SPARQL backend TogoPackage uses with `sparql_backend`.
 You can choose which MCP server TogoPackage exposes on `/mcp` with `mcp_server`.
 You can mount the public HTTP entrypoint under a subpath with `public_path`.
-You can override the base URL shown in dashboard endpoint URLs with `dashboard.public_url`.
+You can override the base URL shown in dashboard endpoint URLs with `public_url`.
 
 In the examples above, the host-side bind-mounted directory is `./data.example` or `/path/to/data`.
 TogoPackage reads `config.yaml` from that mounted directory.
@@ -121,8 +121,7 @@ You can either use `./data.example` directly or use it as a reference when prepa
 sparql_backend: qlever
 mcp_server: togomcp
 public_path: /togopackage
-dashboard:
-  public_url: https://example.org:10005
+public_url: https://example.org:10005
 sparql_proxy:
   ADMIN_PASSWORD: your-sparql-proxy-admin-password
 sparqlist:
@@ -206,7 +205,7 @@ Rules:
 - `virtuoso.server.SERVER_THREADS` is optional. Default: `10`
 - `virtuoso.server.MAX_CLIENT_CONNECTIONS` is optional. Default: `10`
 - TogoPackage revokes `SPARQL_UPDATE` from Virtuoso's public `SPARQL` account during setup so the public endpoint stays read-only
-- `dashboard.public_url` accepts an `http://` or `https://` base URL. It must not include a query string or fragment. If `public_path` is set, TogoPackage appends it to `dashboard.public_url` for dashboard endpoint URLs
+- `public_url` accepts an `http://` or `https://` base URL. It must not include a query string or fragment. If `public_path` is set, TogoPackage appends it to `public_url` for dashboard endpoint URLs
 - Virtuoso numeric tuning values are YAML integers. Use strings only for values with units such as `MAX_QUERY_MEM`
 - Virtuoso ports and data paths cannot be changed from `config.yaml` because they are tied to other runtime services and exposed port assumptions
 - `format` can be specified for each `source`

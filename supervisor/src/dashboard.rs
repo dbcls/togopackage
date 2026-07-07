@@ -194,7 +194,7 @@ async fn dashboard_page(State(app): State<DashboardAppState>, headers: HeaderMap
         &snapshot,
         &request_base_url(
             &headers,
-            app.config.dashboard_public_url.as_deref(),
+            app.config.public_url.as_deref(),
             &app.config.public_path,
         ),
     ))
@@ -207,7 +207,7 @@ async fn logs_page(State(app): State<DashboardAppState>, headers: HeaderMap) -> 
         &snapshot,
         &request_base_url(
             &headers,
-            app.config.dashboard_public_url.as_deref(),
+            app.config.public_url.as_deref(),
             &app.config.public_path,
         ),
     ))
