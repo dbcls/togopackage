@@ -701,18 +701,19 @@ fn render_service_card(snapshot: &DashboardSnapshot, card: &ServiceCard, base_ur
         None => format!(r#"<div class="card-static">{}</div>"#, card_body),
     };
 
-    let meta = render_card_meta(card.dashboard.endpoints, service, base_url);
+    let meta = render_card_meta(card.key, card.dashboard.endpoints, service, base_url);
 
     format!(r#"<section class="card">{}{}</section>"#, main, meta)
 }
 
 fn render_card_meta(
+    service_key: &str,
     endpoints: &[ServiceEndpoint],
     service: Option<&ServiceStatusSnapshot>,
     base_url: &str,
 ) -> String {
     let details = render_details(service);
-    let endpoints = render_endpoints(endpoints, base_url);
+    let endpoints = render_endpoints(service_key, endpoints, base_url);
 
     if details.is_empty() && endpoints.is_empty() {
         String::new()
@@ -760,7 +761,7 @@ fn render_details(service: Option<&ServiceStatusSnapshot>) -> String {
     )
 }
 
-fn render_endpoints(endpoints: &[ServiceEndpoint], base_url: &str) -> String {
+fn render_endpoints(service_key: &str, endpoints: &[ServiceEndpoint], base_url: &str) -> String {
     if endpoints.is_empty() {
         return String::new();
     }
@@ -770,18 +771,19 @@ fn render_endpoints(endpoints: &[ServiceEndpoint], base_url: &str) -> String {
         .enumerate()
         .map(|(index, endpoint)| {
             let url = absolute_url(base_url, endpoint.path);
+            let endpoint_id = format!("endpoint-{service_key}-{index}");
             format!(
                 r#"<div class="endpoint-item">
   <div class="endpoint-label">{}</div>
   <div class="endpoint-row">
-    <div class="endpoint-url"><code id="endpoint-{}">{}</code></div>
-    <button type="button" class="endpoint-copy" data-copy-target="endpoint-{}">{}</button>
+    <div class="endpoint-url"><code id="{}">{}</code></div>
+    <button type="button" class="endpoint-copy" data-copy-target="{}">{}</button>
   </div>
 </div>"#,
                 escape_html(endpoint.label),
-                index,
+                endpoint_id,
                 escape_html(&url),
-                index,
+                endpoint_id,
                 "Copy",
             )
         })
@@ -1065,7 +1067,8 @@ fn absolute_url(base_url: &str, path: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::request_base_url;
+    use super::{render_endpoints, request_base_url};
+    use crate::services::ServiceEndpoint;
     use axum::http::{HeaderMap, HeaderValue};
 
     #[test]
@@ -1086,5 +1089,27 @@ mod tests {
         headers.insert("host", HeaderValue::from_static("localhost:10005"));
 
         assert_eq!(request_base_url(&headers, None), "http://localhost:10005");
+    }
+
+    #[test]
+    fn render_endpoints_uses_service_scoped_copy_targets() {
+        let endpoints = &[
+            ServiceEndpoint {
+                label: "MCP Endpoint",
+                path: "/mcp",
+            },
+            ServiceEndpoint {
+                label: "SSE Endpoint",
+                path: "/sse",
+            },
+        ];
+
+        let html = render_endpoints("togomcp", endpoints, "http://localhost:10005/togopackage");
+
+        assert!(html.contains(r#"id="endpoint-togomcp-0""#));
+        assert!(html.contains(r#"data-copy-target="endpoint-togomcp-0""#));
+        assert!(html.contains(r#"id="endpoint-togomcp-1""#));
+        assert!(html.contains(r#"data-copy-target="endpoint-togomcp-1""#));
+        assert!(!html.contains(r#"id="endpoint-0""#));
     }
 }
