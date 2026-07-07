@@ -145,8 +145,8 @@ mod tests {
         Config {
             togopackage_config: String::from("/data/config.yaml"),
             togopackage_defaults_dir: String::from("/togo/defaults"),
-            public_path: String::from("/"),
-            public_url: None,
+            base_path: String::from("/"),
+            base_url: None,
             rdf_config_base_dir: String::from("/data/rdf-config"),
             qlever_access_token: None,
             qlever_memory_for_queries: Some(String::from("2G")),
@@ -270,9 +270,9 @@ mod tests {
     }
 
     #[test]
-    fn web_service_env_uses_public_subpath_when_configured() {
+    fn web_service_env_uses_base_subpath_when_configured() {
         let mut config = test_config(SparqlBackend::QLever, McpServer::Togomcp);
-        config.public_path = String::from("/togopackage");
+        config.base_path = String::from("/togopackage");
         config.sparqlist_root_path = String::from("/togopackage/sparqlist/");
         config.grasp_root_path = String::from("/togopackage/grasp");
 

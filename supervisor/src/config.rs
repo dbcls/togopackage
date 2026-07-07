@@ -38,9 +38,9 @@ pub enum McpServer {
 #[serde(deny_unknown_fields)]
 struct RuntimeConfigFile {
     #[serde(default)]
-    public_path: Option<String>,
+    base_path: Option<String>,
     #[serde(default)]
-    public_url: Option<String>,
+    base_url: Option<String>,
     #[serde(default)]
     sparql_backend: Option<String>,
     #[serde(default)]
@@ -129,8 +129,8 @@ struct VirtuosoServerConfigFile {
 pub struct Config {
     pub togopackage_config: String,
     pub togopackage_defaults_dir: String,
-    pub public_path: String,
-    pub public_url: Option<String>,
+    pub base_path: String,
+    pub base_url: Option<String>,
     pub rdf_config_base_dir: String,
     pub qlever_access_token: Option<String>,
     pub qlever_memory_for_queries: Option<String>,
@@ -194,17 +194,17 @@ impl Config {
         let supervisor_http_port = String::from("7005");
         let togomcp_data_dir = String::from("/data/togomcp");
         let virtuoso_data_dir = String::from("/data/virtuoso");
-        let public_path = normalize_public_path(runtime_config.public_path)?;
+        let base_path = normalize_base_path(runtime_config.base_path)?;
         let sparqlist_root_path =
-            public_path_with_trailing(&join_public_path(&public_path, "/sparqlist"));
-        let grasp_root_path = join_public_path(&public_path, "/grasp");
-        let public_url = normalize_public_url(runtime_config.public_url, &public_path)?;
+            base_path_with_trailing(&join_base_path(&base_path, "/sparqlist"));
+        let grasp_root_path = join_base_path(&base_path, "/grasp");
+        let base_url = normalize_base_url(runtime_config.base_url, &base_path)?;
 
         Ok(Self {
             togopackage_config: String::from(config_path),
             togopackage_defaults_dir: String::from("/togo/defaults"),
-            public_path,
-            public_url,
+            base_path,
+            base_url,
             rdf_config_base_dir: String::from("/data/rdf-config"),
 
             qlever_access_token: runtime_config.qlever.server.access_token,
@@ -347,12 +347,12 @@ impl Config {
         }
     }
 
-    pub fn public_root_path(&self) -> String {
-        public_path_with_trailing(&self.public_path)
+    pub fn base_root_path(&self) -> String {
+        base_path_with_trailing(&self.base_path)
     }
 
-    pub fn public_url_path(&self, path: &str) -> String {
-        join_public_path(&self.public_path, path)
+    pub fn route_path(&self, path: &str) -> String {
+        join_base_path(&self.base_path, path)
     }
 
     pub fn resolve_path(&self, key: ConfigPath) -> &str {
@@ -368,7 +368,7 @@ impl Config {
     }
 }
 
-fn normalize_public_path(path: Option<String>) -> Result<String, String> {
+fn normalize_base_path(path: Option<String>) -> Result<String, String> {
     let Some(path) = path else {
         return Ok(String::from("/"));
     };
@@ -379,58 +379,56 @@ fn normalize_public_path(path: Option<String>) -> Result<String, String> {
     }
 
     if !path.starts_with('/') {
-        return Err(String::from("public_path must start with /"));
+        return Err(String::from("base_path must start with /"));
     }
     if path.contains('?') || path.contains('#') {
         return Err(String::from(
-            "public_path must not include a query string or fragment",
+            "base_path must not include a query string or fragment",
         ));
     }
     if path.contains("//") {
-        return Err(String::from("public_path must not contain empty segments"));
+        return Err(String::from("base_path must not contain empty segments"));
     }
     if path
         .split('/')
         .skip(1)
         .any(|segment| segment == "." || segment == "..")
     {
-        return Err(String::from(
-            "public_path must not contain . or .. segments",
-        ));
+        return Err(String::from("base_path must not contain . or .. segments"));
     }
     if !path
         .chars()
         .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '/' | '-' | '_' | '.' | '~'))
     {
         return Err(String::from(
-            "public_path may only contain ASCII letters, digits, /, -, _, ., and ~",
+            "base_path may only contain ASCII letters, digits, /, -, _, ., and ~",
         ));
     }
 
     Ok(path.to_string())
 }
 
-fn public_path_with_trailing(public_path: &str) -> String {
-    if public_path == "/" {
+fn base_path_with_trailing(base_path: &str) -> String {
+    if base_path == "/" {
         String::from("/")
     } else {
-        format!("{public_path}/")
+        format!("{base_path}/")
     }
 }
 
-fn join_public_path(public_path: &str, path: &str) -> String {
-    if public_path == "/" {
+fn join_base_path(base_path: &str, path: &str) -> String {
+    if base_path == "/" {
         return path.to_string();
     }
 
     if path == "/" || path.is_empty() {
-        return format!("{public_path}/");
+        return format!("{base_path}/");
     }
 
-    format!("{public_path}/{}", path.trim_start_matches('/'))
+    format!("{base_path}/{}", path.trim_start_matches('/'))
 }
 
-fn normalize_public_url(url: Option<String>, public_path: &str) -> Result<Option<String>, String> {
+fn normalize_base_url(url: Option<String>, base_path: &str) -> Result<Option<String>, String> {
     let Some(url) = url else {
         return Ok(None);
     };
@@ -442,20 +440,20 @@ fn normalize_public_url(url: Option<String>, public_path: &str) -> Result<Option
 
     if !(url.starts_with("http://") || url.starts_with("https://")) {
         return Err(String::from(
-            "public_url must be an http:// or https:// base URL",
+            "base_url must be an http:// or https:// base URL",
         ));
     }
 
     if url.contains('?') || url.contains('#') {
         return Err(String::from(
-            "public_url must not include a query string or fragment",
+            "base_url must not include a query string or fragment",
         ));
     }
 
-    let url = if public_path == "/" {
+    let url = if base_path == "/" {
         url.to_string()
     } else {
-        format!("{url}{public_path}")
+        format!("{url}{base_path}")
     };
 
     Ok(Some(url))
@@ -515,13 +513,13 @@ mod tests {
     }
 
     #[test]
-    fn reads_public_url_from_config_yaml() {
+    fn reads_base_url_from_config_yaml() {
         let path = temp_config_path("togopackage-config");
         fs::write(
             &path,
             concat!(
                 "source: []\n",
-                "public_url: https://public.example.org:10005/\n",
+                "base_url: https://public.example.org:10005/\n",
             ),
         )
         .expect("write config");
@@ -530,20 +528,20 @@ mod tests {
 
         fs::remove_file(&path).expect("remove config");
         assert_eq!(
-            config.public_url.as_deref(),
+            config.base_url.as_deref(),
             Some("https://public.example.org:10005")
         );
     }
 
     #[test]
-    fn appends_public_path_to_public_url() {
+    fn appends_base_path_to_base_url() {
         let path = temp_config_path("togopackage-config");
         fs::write(
             &path,
             concat!(
                 "source: []\n",
-                "public_path: /togopackage\n",
-                "public_url: https://public.example.org:10005/\n",
+                "base_path: /togopackage\n",
+                "base_url: https://public.example.org:10005/\n",
             ),
         )
         .expect("write config");
@@ -552,26 +550,26 @@ mod tests {
 
         fs::remove_file(&path).expect("remove config");
         assert_eq!(
-            config.public_url.as_deref(),
+            config.base_url.as_deref(),
             Some("https://public.example.org:10005/togopackage")
         );
     }
 
     #[test]
-    fn reads_public_path_from_config_yaml() {
+    fn reads_base_path_from_config_yaml() {
         let path = temp_config_path("togopackage-config");
         fs::write(
             &path,
-            concat!("source: []\n", "public_path: /togopackage/\n",),
+            concat!("source: []\n", "base_path: /togopackage/\n",),
         )
         .expect("write config");
 
         let config = Config::from_config_path(&path).expect("config should parse");
 
         fs::remove_file(&path).expect("remove config");
-        assert_eq!(config.public_path, "/togopackage");
-        assert_eq!(config.public_root_path(), "/togopackage/");
-        assert_eq!(config.public_url_path("/sparql"), "/togopackage/sparql");
+        assert_eq!(config.base_path, "/togopackage");
+        assert_eq!(config.base_root_path(), "/togopackage/");
+        assert_eq!(config.route_path("/sparql"), "/togopackage/sparql");
         assert_eq!(config.sparqlist_root_path, "/togopackage/sparqlist/");
         assert_eq!(config.grasp_root_path, "/togopackage/grasp");
     }
@@ -614,51 +612,51 @@ mod tests {
     }
 
     #[test]
-    fn rejects_public_url_without_url_scheme() {
+    fn rejects_base_url_without_url_scheme() {
         let path = temp_config_path("togopackage-config");
         fs::write(
             &path,
-            concat!("source: []\n", "public_url: public.example.org\n",),
+            concat!("source: []\n", "base_url: public.example.org\n",),
         )
         .expect("write config");
 
         let error = Config::from_config_path(&path).expect_err("host-only value should fail");
 
         fs::remove_file(&path).expect("remove config");
-        assert!(error.contains("public_url"));
+        assert!(error.contains("base_url"));
     }
 
     #[test]
-    fn rejects_public_path_without_leading_slash() {
+    fn rejects_base_path_without_leading_slash() {
         let path = temp_config_path("togopackage-config");
-        fs::write(&path, "source: []\npublic_path: togopackage\n").expect("write config");
+        fs::write(&path, "source: []\nbase_path: togopackage\n").expect("write config");
 
-        let error = Config::from_config_path(&path).expect_err("invalid public_path should fail");
+        let error = Config::from_config_path(&path).expect_err("invalid base_path should fail");
 
         fs::remove_file(&path).expect("remove config");
-        assert!(error.contains("public_path"));
+        assert!(error.contains("base_path"));
     }
 
     #[test]
-    fn rejects_public_path_with_query_string() {
+    fn rejects_base_path_with_query_string() {
         let path = temp_config_path("togopackage-config");
-        fs::write(&path, "source: []\npublic_path: /togopackage?x=1\n").expect("write config");
+        fs::write(&path, "source: []\nbase_path: /togopackage?x=1\n").expect("write config");
 
-        let error = Config::from_config_path(&path).expect_err("invalid public_path should fail");
+        let error = Config::from_config_path(&path).expect_err("invalid base_path should fail");
 
         fs::remove_file(&path).expect("remove config");
-        assert!(error.contains("public_path"));
+        assert!(error.contains("base_path"));
     }
 
     #[test]
-    fn rejects_public_path_with_dot_segments() {
+    fn rejects_base_path_with_dot_segments() {
         let path = temp_config_path("togopackage-config");
-        fs::write(&path, "source: []\npublic_path: /../togopackage\n").expect("write config");
+        fs::write(&path, "source: []\nbase_path: /../togopackage\n").expect("write config");
 
-        let error = Config::from_config_path(&path).expect_err("invalid public_path should fail");
+        let error = Config::from_config_path(&path).expect_err("invalid base_path should fail");
 
         fs::remove_file(&path).expect("remove config");
-        assert!(error.contains("public_path"));
+        assert!(error.contains("base_path"));
     }
 
     #[test]
@@ -808,15 +806,15 @@ mod tests {
     }
 
     #[test]
-    fn public_settings_fall_back_to_defaults() {
+    fn base_settings_fall_back_to_defaults() {
         let path = temp_config_path("togopackage-config");
         fs::write(&path, "source: []\n").expect("write config");
 
         let config = Config::from_config_path(&path).expect("config should parse");
 
         fs::remove_file(&path).expect("remove config");
-        assert_eq!(config.public_path, "/");
-        assert_eq!(config.public_url, None);
+        assert_eq!(config.base_path, "/");
+        assert_eq!(config.base_url, None);
     }
 
     #[test]

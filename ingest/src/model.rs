@@ -48,10 +48,10 @@ pub struct SourceConfigFile {
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct IngestConfigFile {
-    #[serde(default, rename = "public_path")]
-    pub _public_path: Option<String>,
-    #[serde(default, rename = "public_url")]
-    pub _public_url: Option<String>,
+    #[serde(default, rename = "base_path")]
+    pub _base_path: Option<String>,
+    #[serde(default, rename = "base_url")]
+    pub _base_url: Option<String>,
     #[serde(default, rename = "sparql_backend")]
     pub sparql_backend: Option<String>,
     #[serde(default, rename = "mcp_server")]
@@ -132,11 +132,11 @@ mod tests {
     #[test]
     fn parses_runtime_only_settings() {
         let config = serde_yaml::from_str::<IngestConfigFile>(
-            "public_path: /togopackage\npublic_url: https://example.org\nsource: []\n",
+            "base_path: /togopackage\nbase_url: https://example.org\nsource: []\n",
         )
         .expect("config should parse");
 
-        assert_eq!(config._public_path.as_deref(), Some("/togopackage"));
-        assert_eq!(config._public_url.as_deref(), Some("https://example.org"));
+        assert_eq!(config._base_path.as_deref(), Some("/togopackage"));
+        assert_eq!(config._base_url.as_deref(), Some("https://example.org"));
     }
 }

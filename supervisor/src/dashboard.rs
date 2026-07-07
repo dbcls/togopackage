@@ -194,8 +194,8 @@ async fn dashboard_page(State(app): State<DashboardAppState>, headers: HeaderMap
         &snapshot,
         &request_base_url(
             &headers,
-            app.config.public_url.as_deref(),
-            &app.config.public_path,
+            app.config.base_url.as_deref(),
+            &app.config.base_path,
         ),
     ))
 }
@@ -207,8 +207,8 @@ async fn logs_page(State(app): State<DashboardAppState>, headers: HeaderMap) -> 
         &snapshot,
         &request_base_url(
             &headers,
-            app.config.public_url.as_deref(),
-            &app.config.public_path,
+            app.config.base_url.as_deref(),
+            &app.config.base_path,
         ),
     ))
 }
@@ -353,8 +353,8 @@ fn render_html(config: &Config, snapshot: &DashboardSnapshot, base_url: &str) ->
         .map(|card| render_service_card(config, snapshot, card, base_url))
         .collect::<Vec<_>>()
         .join("\n");
-    let dashboard_path = config.public_url_path("/");
-    let logs_path = config.public_url_path("/logs");
+    let dashboard_path = config.route_path("/");
+    let logs_path = config.route_path("/logs");
 
     format!(
         r#"<!doctype html>
@@ -710,7 +710,7 @@ fn render_service_card(
 
     let main = match card.dashboard.href {
         Some(href) => {
-            let href = config.public_url_path(href);
+            let href = config.route_path(href);
             format!(
                 r#"<a href="{href}" class="card-link" aria-label="Open {}">{}</a>"#,
                 escape_html(card.dashboard.title),
@@ -836,8 +836,8 @@ fn enrich_snapshot(mut snapshot: DashboardSnapshot) -> DashboardSnapshot {
 }
 
 fn render_logs_html(config: &Config, _: &DashboardSnapshot, _: &str) -> String {
-    let dashboard_path = config.public_url_path("/");
-    let events_path = config.public_url_path("/api/events");
+    let dashboard_path = config.route_path("/");
+    let events_path = config.route_path("/api/events");
 
     format!(
         r#"<!doctype html>
@@ -1060,11 +1060,11 @@ fn escape_html(input: &str) -> String {
 
 fn request_base_url(
     headers: &HeaderMap,
-    configured_public_url: Option<&str>,
-    public_path: &str,
+    configured_base_url: Option<&str>,
+    base_path: &str,
 ) -> String {
-    if let Some(public_url) = configured_public_url.filter(|value| !value.is_empty()) {
-        return public_url.to_string();
+    if let Some(base_url) = configured_base_url.filter(|value| !value.is_empty()) {
+        return base_url.to_string();
     }
 
     let scheme = headers
@@ -1077,10 +1077,10 @@ fn request_base_url(
         .and_then(|value| value.to_str().ok())
         .filter(|value| !value.is_empty())
         .unwrap_or("localhost:10005");
-    if public_path == "/" {
+    if base_path == "/" {
         format!("{scheme}://{host}")
     } else {
-        format!("{scheme}://{host}{public_path}")
+        format!("{scheme}://{host}{base_path}")
     }
 }
 
@@ -1103,7 +1103,7 @@ mod tests {
     use axum::http::{HeaderMap, HeaderValue};
 
     #[test]
-    fn request_base_url_uses_configured_public_url_when_present() {
+    fn request_base_url_uses_configured_base_url_when_present() {
         let mut headers = HeaderMap::new();
         headers.insert("host", HeaderValue::from_static("internal.local:10005"));
         headers.insert("x-forwarded-proto", HeaderValue::from_static("https"));
@@ -1130,7 +1130,7 @@ mod tests {
     }
 
     #[test]
-    fn request_base_url_appends_public_path_without_configured_public_url() {
+    fn request_base_url_appends_base_path_without_configured_base_url() {
         let mut headers = HeaderMap::new();
         headers.insert("host", HeaderValue::from_static("localhost:10005"));
 

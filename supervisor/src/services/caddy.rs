@@ -11,7 +11,7 @@ fn env(config: &Config) -> Vec<(&'static str, String)> {
     let mut env = base_env(config);
     env.extend([
         ("HOME", String::from(CADDY_HOME)),
-        ("PUBLIC_PATH", config.public_path.clone()),
+        ("PUBLIC_PATH", config.base_path.clone()),
         (
             "CADDY_GENERATED_CONFIG",
             String::from(CADDY_GENERATED_CONFIG),
