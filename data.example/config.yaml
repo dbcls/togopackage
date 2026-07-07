@@ -1,5 +1,6 @@
 sparql_backend: qlever
 mcp_server: togomcp
+# public_path: /togopackage
 
 qlever:
   server:

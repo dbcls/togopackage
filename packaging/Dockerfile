@@ -97,6 +97,9 @@ RUN cd /vendor/sparql-proxy && npm ci && npm run build
 
 # Install sparqlist.
 RUN cd /vendor/sparqlist && npm ci && ROOT_PATH=/sparqlist/ npm run build && rm -rf /vendor/sparqlist/repository
+RUN chmod -R a+rwX /vendor/sparql-proxy/public /vendor/sparqlist/public \
+    /vendor/sparqlist/frontend/node_modules/.vite-temp \
+  && chmod a+w /vendor/sparqlist
 
 # Install grasp.
 RUN cd /vendor/grasp && npm ci

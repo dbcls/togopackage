@@ -48,10 +48,14 @@ pub struct SourceConfigFile {
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct IngestConfigFile {
+    #[serde(default, rename = "public_path")]
+    pub _public_path: Option<String>,
     #[serde(default, rename = "sparql_backend")]
     pub sparql_backend: Option<String>,
     #[serde(default, rename = "mcp_server")]
     pub _mcp_server: Option<String>,
+    #[serde(default, rename = "dashboard")]
+    pub _dashboard: Option<serde_yaml::Value>,
     #[serde(default, rename = "qlever")]
     pub _qlever: Option<serde_yaml::Value>,
     #[serde(default, rename = "virtuoso")]
@@ -123,5 +127,16 @@ mod tests {
         };
 
         assert_eq!(config.selected_backend(), SparqlBackend::QLever);
+    }
+
+    #[test]
+    fn parses_runtime_only_settings() {
+        let config = serde_yaml::from_str::<IngestConfigFile>(
+            "public_path: /togopackage\ndashboard:\n  public_url: https://example.org\nsource: []\n",
+        )
+        .expect("config should parse");
+
+        assert_eq!(config._public_path.as_deref(), Some("/togopackage"));
+        assert!(config._dashboard.is_some());
     }
 }

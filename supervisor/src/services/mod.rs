@@ -145,6 +145,7 @@ mod tests {
         Config {
             togopackage_config: String::from("/data/config.yaml"),
             togopackage_defaults_dir: String::from("/togo/defaults"),
+            public_path: String::from("/"),
             rdf_config_base_dir: String::from("/data/rdf-config"),
             qlever_access_token: None,
             qlever_memory_for_queries: Some(String::from("2G")),
@@ -266,5 +267,40 @@ mod tests {
 
         assert!(names.contains(&"togomcp"));
         assert!(!names.contains(&"rdf-config-mcp"));
+    }
+
+    #[test]
+    fn web_service_env_uses_public_subpath_when_configured() {
+        let mut config = test_config(SparqlBackend::QLever, McpServer::Togomcp);
+        config.public_path = String::from("/togopackage");
+        config.sparqlist_root_path = String::from("/togopackage/sparqlist/");
+        config.grasp_root_path = String::from("/togopackage/grasp");
+
+        let services = active_services(&config);
+        let sparql_proxy = services
+            .iter()
+            .find(|spec| spec.name == "sparql-proxy")
+            .expect("sparql-proxy service");
+        let sparqlist = services
+            .iter()
+            .find(|spec| spec.name == "sparqlist")
+            .expect("sparqlist service");
+        let grasp = services
+            .iter()
+            .find(|spec| spec.name == "grasp")
+            .expect("grasp service");
+
+        assert!((sparql_proxy.env)(&config)
+            .into_iter()
+            .any(|(key, value)| key == "ROOT_PATH" && value == "/"));
+        assert!((sparql_proxy.env)(&config)
+            .into_iter()
+            .any(|(key, value)| key == "SPARQL_PROXY_PUBLIC_PATH" && value == "/togopackage/"));
+        assert!((sparqlist.env)(&config)
+            .into_iter()
+            .any(|(key, value)| key == "ROOT_PATH" && value == "/togopackage/sparqlist/"));
+        assert!((grasp.env)(&config)
+            .into_iter()
+            .any(|(key, value)| key == "ROOT_PATH" && value == "/togopackage/grasp"));
     }
 }

@@ -5,11 +5,17 @@ use super::{base_env, ServiceCommand, ServiceDashboard, ServiceSpec};
 const CADDY_HOME: &str = "/tmp/togopackage-caddy";
 const CADDY_CONFIG_HOME: &str = "/tmp/togopackage-caddy-config";
 const CADDY_DATA_HOME: &str = "/tmp/togopackage-caddy-data";
+const CADDY_GENERATED_CONFIG: &str = "/tmp/togopackage-caddy/Caddyfile";
 
 fn env(config: &Config) -> Vec<(&'static str, String)> {
     let mut env = base_env(config);
     env.extend([
         ("HOME", String::from(CADDY_HOME)),
+        ("PUBLIC_PATH", config.public_path.clone()),
+        (
+            "CADDY_GENERATED_CONFIG",
+            String::from(CADDY_GENERATED_CONFIG),
+        ),
         ("SUPERVISOR_HTTP_PORT", config.supervisor_http_port.clone()),
         ("SPARQL_PROXY_PORT", config.sparql_proxy_port.clone()),
         ("SPARQLIST_PORT", config.sparqlist_port.clone()),
@@ -25,9 +31,9 @@ fn env(config: &Config) -> Vec<(&'static str, String)> {
 
 pub const SPEC: ServiceSpec = ServiceSpec {
     name: "caddy",
-    setup_command: None,
+    setup_command: Some("/togo/runtime/setup/caddy.sh"),
     command: ServiceCommand::Run(
-        "exec /usr/bin/caddy run --config /etc/caddy/Caddyfile --adapter caddyfile",
+        "exec /usr/bin/caddy run --config /tmp/togopackage-caddy/Caddyfile --adapter caddyfile",
     ),
     cwd: None,
     env,

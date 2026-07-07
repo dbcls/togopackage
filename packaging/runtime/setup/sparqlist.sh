@@ -4,6 +4,7 @@ set -euo pipefail
 REPOSITORY_PATH="${REPOSITORY_PATH:-${SPARQLIST_REPOSITORY_PATH:-/data/sparqlist}}"
 RDF_CONFIG_BASE_DIR="${RDF_CONFIG_BASE_DIR:-/data/rdf-config}"
 SPARQLIST_SPARQL_ENDPOINT="${SPARQLIST_SPARQL_ENDPOINT:-http://localhost:7002/sparql}"
+ROOT_PATH="${ROOT_PATH:-${SPARQLIST_ROOT_PATH:-/sparqlist/}}"
 : "${TOGOPACKAGE_DEFAULTS_DIR:=/togo/defaults}"
 
 mkdir -p "${REPOSITORY_PATH}"
@@ -11,6 +12,24 @@ mkdir -p "${REPOSITORY_PATH}"
 log_sparqlist() {
   local message="$1"
   printf '%s\n' "${message}" >&2
+}
+
+sync_frontend_build() {
+  local stamp_dir="/tmp/togopackage-build-stamps"
+  local stamp_file="${stamp_dir}/sparqlist-root-path"
+  local default_root_path="/sparqlist/"
+  local current_root_path="${default_root_path}"
+
+  mkdir -p "${stamp_dir}"
+  if [ -f "${stamp_file}" ]; then
+    current_root_path="$(cat "${stamp_file}")"
+  fi
+
+  if [ "${current_root_path}" != "${ROOT_PATH}" ]; then
+    log_sparqlist "SPARQList frontend build started for ROOT_PATH=${ROOT_PATH}"
+    ROOT_PATH="${ROOT_PATH}" npm run build
+    printf '%s' "${ROOT_PATH}" > "${stamp_file}"
+  fi
 }
 
 copy_default_repository() {
@@ -32,6 +51,7 @@ generator_script="/togo/runtime/support/generate_sparqlist_from_rdf_config.rb"
 if [ ! -d "${RDF_CONFIG_BASE_DIR}" ]; then
   log_sparqlist "RDF-config base directory does not exist. Falling back to default repository: ${RDF_CONFIG_BASE_DIR}"
   copy_default_repository
+  sync_frontend_build
   exit $?
 fi
 
@@ -53,6 +73,7 @@ if "${generator_script}" --rdf-config-base-dir "${RDF_CONFIG_BASE_DIR}" --output
     log_sparqlist "Generated SPARQList repository is empty. Falling back to default repository."
     rm -rf "${tmp_root_dir}"
     copy_default_repository
+    sync_frontend_build
     exit $?
   fi
 else
@@ -61,9 +82,11 @@ else
   if [ "${status}" -eq 10 ]; then
     log_sparqlist "No SPARQList files generated from RDF-config. Falling back to default repository."
     copy_default_repository
+    sync_frontend_build
     exit $?
   fi
   log_sparqlist "Failed to generate SPARQList repository from RDF-config."
   exit "${status}"
 fi
 rm -rf "${tmp_root_dir}"
+sync_frontend_build

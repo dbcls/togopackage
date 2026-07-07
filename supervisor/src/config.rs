@@ -38,6 +38,8 @@ pub enum McpServer {
 #[serde(deny_unknown_fields)]
 struct RuntimeConfigFile {
     #[serde(default)]
+    public_path: Option<String>,
+    #[serde(default)]
     sparql_backend: Option<String>,
     #[serde(default)]
     mcp_server: Option<String>,
@@ -134,6 +136,7 @@ struct VirtuosoServerConfigFile {
 pub struct Config {
     pub togopackage_config: String,
     pub togopackage_defaults_dir: String,
+    pub public_path: String,
     pub rdf_config_base_dir: String,
     pub qlever_access_token: Option<String>,
     pub qlever_memory_for_queries: Option<String>,
@@ -198,10 +201,17 @@ impl Config {
         let supervisor_http_port = String::from("7005");
         let togomcp_data_dir = String::from("/data/togomcp");
         let virtuoso_data_dir = String::from("/data/virtuoso");
+        let public_path = normalize_public_path(runtime_config.public_path)?;
+        let sparqlist_root_path =
+            public_path_with_trailing(&join_public_path(&public_path, "/sparqlist"));
+        let grasp_root_path = join_public_path(&public_path, "/grasp");
+        let dashboard_public_url =
+            normalize_dashboard_public_url(runtime_config.dashboard.public_url, &public_path)?;
 
         Ok(Self {
             togopackage_config: String::from(config_path),
             togopackage_defaults_dir: String::from("/togo/defaults"),
+            public_path,
             rdf_config_base_dir: String::from("/data/rdf-config"),
 
             qlever_access_token: runtime_config.qlever.server.access_token,
@@ -215,9 +225,7 @@ impl Config {
             qlever_index_base: String::from("/data/qlever/index/default"),
             source_data_dir: String::from("/data/sources"),
             source_manifest_path: String::from("/data/sources/source-manifest.json"),
-            dashboard_public_url: normalize_dashboard_public_url(
-                runtime_config.dashboard.public_url,
-            )?,
+            dashboard_public_url,
             qlever_port: qlever_port.clone(),
             qlever_timeout: runtime_config.qlever.server.timeout,
             qlever_cache_max_size: runtime_config.qlever.server.cache_max_size,
@@ -243,12 +251,12 @@ impl Config {
 
             sparqlist_port: String::from("7003"),
             sparqlist_admin_password: runtime_config.sparqlist.admin_password.unwrap_or_default(),
-            sparqlist_root_path: String::from("/sparqlist/"),
+            sparqlist_root_path,
             sparqlist_repository_path: String::from("/data/sparqlist"),
             sparqlist_dir: String::from("/vendor/sparqlist"),
 
             grasp_port: String::from("7004"),
-            grasp_root_path: String::from("/grasp"),
+            grasp_root_path,
             grasp_resources_dir: String::from("/data/grasp"),
             grasp_dir: String::from("/vendor/grasp"),
 
@@ -347,6 +355,14 @@ impl Config {
         }
     }
 
+    pub fn public_root_path(&self) -> String {
+        public_path_with_trailing(&self.public_path)
+    }
+
+    pub fn public_url_path(&self, path: &str) -> String {
+        join_public_path(&self.public_path, path)
+    }
+
     pub fn resolve_path(&self, key: ConfigPath) -> &str {
         match key {
             ConfigPath::DataRoot => "/data",
@@ -360,7 +376,72 @@ impl Config {
     }
 }
 
-fn normalize_dashboard_public_url(url: Option<String>) -> Result<Option<String>, String> {
+fn normalize_public_path(path: Option<String>) -> Result<String, String> {
+    let Some(path) = path else {
+        return Ok(String::from("/"));
+    };
+
+    let path = path.trim().trim_end_matches('/');
+    if path.is_empty() {
+        return Ok(String::from("/"));
+    }
+
+    if !path.starts_with('/') {
+        return Err(String::from("public_path must start with /"));
+    }
+    if path.contains('?') || path.contains('#') {
+        return Err(String::from(
+            "public_path must not include a query string or fragment",
+        ));
+    }
+    if path.contains("//") {
+        return Err(String::from("public_path must not contain empty segments"));
+    }
+    if path
+        .split('/')
+        .skip(1)
+        .any(|segment| segment == "." || segment == "..")
+    {
+        return Err(String::from(
+            "public_path must not contain . or .. segments",
+        ));
+    }
+    if !path
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '/' | '-' | '_' | '.' | '~'))
+    {
+        return Err(String::from(
+            "public_path may only contain ASCII letters, digits, /, -, _, ., and ~",
+        ));
+    }
+
+    Ok(path.to_string())
+}
+
+fn public_path_with_trailing(public_path: &str) -> String {
+    if public_path == "/" {
+        String::from("/")
+    } else {
+        format!("{public_path}/")
+    }
+}
+
+fn join_public_path(public_path: &str, path: &str) -> String {
+    if public_path == "/" {
+        return path.to_string();
+    }
+
+    if path == "/" || path.is_empty() {
+        return format!("{public_path}/");
+    }
+
+    format!("{public_path}/{}", path.trim_start_matches('/'))
+}
+
+fn normalize_dashboard_public_url(
+    url: Option<String>,
+    public_path: &str,
+) -> Result<Option<String>, String> {
     let Some(url) = url else {
         return Ok(None);
     };
@@ -382,7 +463,13 @@ fn normalize_dashboard_public_url(url: Option<String>) -> Result<Option<String>,
         ));
     }
 
-    Ok(Some(url.to_string()))
+    let url = if public_path == "/" {
+        url.to_string()
+    } else {
+        format!("{url}{public_path}")
+    };
+
+    Ok(Some(url))
 }
 
 #[cfg(test)]
@@ -461,6 +548,48 @@ mod tests {
     }
 
     #[test]
+    fn appends_public_path_to_dashboard_public_url() {
+        let path = temp_config_path("togopackage-config");
+        fs::write(
+            &path,
+            concat!(
+                "source: []\n",
+                "public_path: /togopackage\n",
+                "dashboard:\n",
+                "  public_url: https://public.example.org:10005/\n",
+            ),
+        )
+        .expect("write config");
+
+        let config = Config::from_config_path(&path).expect("config should parse");
+
+        fs::remove_file(&path).expect("remove config");
+        assert_eq!(
+            config.dashboard_public_url.as_deref(),
+            Some("https://public.example.org:10005/togopackage")
+        );
+    }
+
+    #[test]
+    fn reads_public_path_from_config_yaml() {
+        let path = temp_config_path("togopackage-config");
+        fs::write(
+            &path,
+            concat!("source: []\n", "public_path: /togopackage/\n",),
+        )
+        .expect("write config");
+
+        let config = Config::from_config_path(&path).expect("config should parse");
+
+        fs::remove_file(&path).expect("remove config");
+        assert_eq!(config.public_path, "/togopackage");
+        assert_eq!(config.public_root_path(), "/togopackage/");
+        assert_eq!(config.public_url_path("/sparql"), "/togopackage/sparql");
+        assert_eq!(config.sparqlist_root_path, "/togopackage/sparqlist/");
+        assert_eq!(config.grasp_root_path, "/togopackage/grasp");
+    }
+
+    #[test]
     fn invalid_mcp_server_value_falls_back_to_togomcp() {
         let path = temp_config_path("togopackage-config");
         fs::write(&path, "mcp_server: unknown\nsource: []\n").expect("write config");
@@ -514,6 +643,39 @@ mod tests {
 
         fs::remove_file(&path).expect("remove config");
         assert!(error.contains("dashboard.public_url"));
+    }
+
+    #[test]
+    fn rejects_public_path_without_leading_slash() {
+        let path = temp_config_path("togopackage-config");
+        fs::write(&path, "source: []\npublic_path: togopackage\n").expect("write config");
+
+        let error = Config::from_config_path(&path).expect_err("invalid public_path should fail");
+
+        fs::remove_file(&path).expect("remove config");
+        assert!(error.contains("public_path"));
+    }
+
+    #[test]
+    fn rejects_public_path_with_query_string() {
+        let path = temp_config_path("togopackage-config");
+        fs::write(&path, "source: []\npublic_path: /togopackage?x=1\n").expect("write config");
+
+        let error = Config::from_config_path(&path).expect_err("invalid public_path should fail");
+
+        fs::remove_file(&path).expect("remove config");
+        assert!(error.contains("public_path"));
+    }
+
+    #[test]
+    fn rejects_public_path_with_dot_segments() {
+        let path = temp_config_path("togopackage-config");
+        fs::write(&path, "source: []\npublic_path: /../togopackage\n").expect("write config");
+
+        let error = Config::from_config_path(&path).expect_err("invalid public_path should fail");
+
+        fs::remove_file(&path).expect("remove config");
+        assert!(error.contains("public_path"));
     }
 
     #[test]
@@ -670,6 +832,7 @@ mod tests {
         let config = Config::from_config_path(&path).expect("config should parse");
 
         fs::remove_file(&path).expect("remove config");
+        assert_eq!(config.public_path, "/");
         assert_eq!(config.dashboard_public_url, None);
     }
 

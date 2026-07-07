@@ -192,15 +192,24 @@ async fn dashboard_page(State(app): State<DashboardAppState>, headers: HeaderMap
     Html(render_html(
         &app.config,
         &snapshot,
-        &request_base_url(&headers, app.config.dashboard_public_url.as_deref()),
+        &request_base_url(
+            &headers,
+            app.config.dashboard_public_url.as_deref(),
+            &app.config.public_path,
+        ),
     ))
 }
 
 async fn logs_page(State(app): State<DashboardAppState>, headers: HeaderMap) -> Html<String> {
     let snapshot = current_snapshot(&app.config, &app.state);
     Html(render_logs_html(
+        &app.config,
         &snapshot,
-        &request_base_url(&headers, app.config.dashboard_public_url.as_deref()),
+        &request_base_url(
+            &headers,
+            app.config.dashboard_public_url.as_deref(),
+            &app.config.public_path,
+        ),
     ))
 }
 
@@ -341,9 +350,11 @@ fn status_snapshot(snapshot: DashboardSnapshot) -> StatusSnapshot {
 fn render_html(config: &Config, snapshot: &DashboardSnapshot, base_url: &str) -> String {
     let service_cards = dashboard_cards(config)
         .iter()
-        .map(|card| render_service_card(snapshot, card, base_url))
+        .map(|card| render_service_card(config, snapshot, card, base_url))
         .collect::<Vec<_>>()
         .join("\n");
+    let dashboard_path = config.public_url_path("/");
+    let logs_path = config.public_url_path("/logs");
 
     format!(
         r#"<!doctype html>
@@ -626,8 +637,8 @@ fn render_html(config: &Config, snapshot: &DashboardSnapshot, base_url: &str) ->
 <body>
   <div class="navbar">
     <div class="navbar-inner">
-      <a href="/" class="btn-ghost">TogoPackage</a>
-      <a href="/logs" class="link-hover">Logs</a>
+      <a href="{}" class="btn-ghost">TogoPackage</a>
+      <a href="{}" class="link-hover">Logs</a>
     </div>
   </div>
   <main class="container">
@@ -659,11 +670,16 @@ fn render_html(config: &Config, snapshot: &DashboardSnapshot, base_url: &str) ->
   </script>
 </body>
 </html>"#,
-        service_cards
+        dashboard_path, logs_path, service_cards
     )
 }
 
-fn render_service_card(snapshot: &DashboardSnapshot, card: &ServiceCard, base_url: &str) -> String {
+fn render_service_card(
+    config: &Config,
+    snapshot: &DashboardSnapshot,
+    card: &ServiceCard,
+    base_url: &str,
+) -> String {
     let service = snapshot.services.get(card.key);
     let state = service
         .map(|service| service.state.as_str())
@@ -693,11 +709,14 @@ fn render_service_card(snapshot: &DashboardSnapshot, card: &ServiceCard, base_ur
     );
 
     let main = match card.dashboard.href {
-        Some(href) => format!(
-            r#"<a href="{href}" class="card-link" aria-label="Open {}">{}</a>"#,
-            escape_html(card.dashboard.title),
-            card_body,
-        ),
+        Some(href) => {
+            let href = config.public_url_path(href);
+            format!(
+                r#"<a href="{href}" class="card-link" aria-label="Open {}">{}</a>"#,
+                escape_html(card.dashboard.title),
+                card_body,
+            )
+        }
         None => format!(r#"<div class="card-static">{}</div>"#, card_body),
     };
 
@@ -816,7 +835,10 @@ fn enrich_snapshot(mut snapshot: DashboardSnapshot) -> DashboardSnapshot {
     snapshot
 }
 
-fn render_logs_html(_: &DashboardSnapshot, _: &str) -> String {
+fn render_logs_html(config: &Config, _: &DashboardSnapshot, _: &str) -> String {
+    let dashboard_path = config.public_url_path("/");
+    let events_path = config.public_url_path("/api/events");
+
     format!(
         r#"<!doctype html>
 <html lang="en">
@@ -928,9 +950,9 @@ fn render_logs_html(_: &DashboardSnapshot, _: &str) -> String {
 <body>
   <div class="navbar">
     <div class="navbar-inner">
-      <a href="/" class="btn-ghost">TogoPackage</a>
+      <a href="{}" class="btn-ghost">TogoPackage</a>
       <div class="nav-links">
-        <a href="/" class="link-hover">Dashboard</a>
+        <a href="{}" class="link-hover">Dashboard</a>
       </div>
     </div>
   </div>
@@ -969,7 +991,7 @@ fn render_logs_html(_: &DashboardSnapshot, _: &str) -> String {
     if (logList) {{
       scrollToBottom();
       window.addEventListener("load", () => {{
-        const eventSource = new EventSource("/api/events");
+        const eventSource = new EventSource("{}");
         eventSource.onmessage = (event) => {{
           let message;
           try {{
@@ -1002,6 +1024,7 @@ fn render_logs_html(_: &DashboardSnapshot, _: &str) -> String {
   </script>
 </body>
 </html>"#,
+        dashboard_path, dashboard_path, events_path,
     )
 }
 
@@ -1035,7 +1058,11 @@ fn escape_html(input: &str) -> String {
         .replace('"', "&quot;")
 }
 
-fn request_base_url(headers: &HeaderMap, configured_public_url: Option<&str>) -> String {
+fn request_base_url(
+    headers: &HeaderMap,
+    configured_public_url: Option<&str>,
+    public_path: &str,
+) -> String {
     if let Some(public_url) = configured_public_url.filter(|value| !value.is_empty()) {
         return public_url.to_string();
     }
@@ -1050,7 +1077,11 @@ fn request_base_url(headers: &HeaderMap, configured_public_url: Option<&str>) ->
         .and_then(|value| value.to_str().ok())
         .filter(|value| !value.is_empty())
         .unwrap_or("localhost:10005");
-    format!("{scheme}://{host}")
+    if public_path == "/" {
+        format!("{scheme}://{host}")
+    } else {
+        format!("{scheme}://{host}{public_path}")
+    }
 }
 
 fn absolute_url(base_url: &str, path: &str) -> String {
@@ -1078,8 +1109,12 @@ mod tests {
         headers.insert("x-forwarded-proto", HeaderValue::from_static("https"));
 
         assert_eq!(
-            request_base_url(&headers, Some("https://public.example.org:10005")),
-            "https://public.example.org:10005"
+            request_base_url(
+                &headers,
+                Some("https://public.example.org:10005/app"),
+                "/app"
+            ),
+            "https://public.example.org:10005/app"
         );
     }
 
@@ -1088,7 +1123,21 @@ mod tests {
         let mut headers = HeaderMap::new();
         headers.insert("host", HeaderValue::from_static("localhost:10005"));
 
-        assert_eq!(request_base_url(&headers, None), "http://localhost:10005");
+        assert_eq!(
+            request_base_url(&headers, None, "/"),
+            "http://localhost:10005"
+        );
+    }
+
+    #[test]
+    fn request_base_url_appends_public_path_without_configured_public_url() {
+        let mut headers = HeaderMap::new();
+        headers.insert("host", HeaderValue::from_static("localhost:10005"));
+
+        assert_eq!(
+            request_base_url(&headers, None, "/togopackage"),
+            "http://localhost:10005/togopackage"
+        );
     }
 
     #[test]

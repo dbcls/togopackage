@@ -14,6 +14,7 @@ fn env(config: &Config) -> Vec<(&'static str, String)> {
         ("PASSTHROUGH", String::from("true")),
         ("SPARQL_PROXY_PORT", config.sparql_proxy_port.clone()),
         ("ROOT_PATH", String::from("/")),
+        ("SPARQL_PROXY_PUBLIC_PATH", config.public_root_path()),
         ("ADMIN_PASSWORD", config.sparql_proxy_admin_password.clone()),
         (
             "SPARQL_PROXY_ADMIN_PASSWORD",
@@ -37,7 +38,7 @@ fn readiness_command(config: &Config) -> String {
 
 pub const SPEC: ServiceSpec = ServiceSpec {
     name: "sparql-proxy",
-    setup_command: None,
+    setup_command: Some("/togo/runtime/setup/sparql_proxy.sh"),
     command: ServiceCommand::Run("exec npm start"),
     cwd: Some(ConfigPath::SparqlProxy),
     env,
