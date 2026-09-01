@@ -67,7 +67,7 @@ fn build_qlever_index(manifest: &InputManifest, index_base: &str) -> Result<(), 
     command
         .arg("-i")
         .arg(index_base)
-        .arg("--parse-parallel")
+        .arg("--parallel-parsing")
         .arg("false");
     for source in &manifest.sources {
         command

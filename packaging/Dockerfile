@@ -1,3 +1,5 @@
+ARG QLEVER_VERSION=0.6.0
+
 FROM docker.io/library/ubuntu:24.04 AS base
 # Packages needed for both both building and running the binaries.
 ENV LANG=C.UTF-8
@@ -6,8 +8,9 @@ ENV LC_CTYPE=C.UTF-8
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install the packages needed for building the binaries (this is a separate
-# stage to keep the final image small).
-FROM docker.io/adfreiburg/qlever:latest AS qlever-prebuilt
+# stage to keep the final image small). Keep the QLever version in sync with
+# the command-line options used by togopackage-ingest.
+FROM docker.io/adfreiburg/qlever:${QLEVER_VERSION} AS qlever-prebuilt
 FROM ghcr.io/dbcls/tabulae:latest AS tabulae-prebuilt
 
 FROM docker.io/library/rust:1.94-bullseye AS supervisor-build
@@ -25,9 +28,10 @@ RUN cargo build --release
 
 # Use prebuilt binaries to avoid building from source.
 FROM base AS runtime
+ARG QLEVER_VERSION
 WORKDIR /qlever
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y wget python3-yaml unzip curl bzip2 xz-utils zstd pkg-config libicu74 python3-icu libgomp1 uuid-runtime make lbzip2 libjemalloc2 libzstd1 libboost-program-options1.83.0 libboost-iostreams1.83.0 libboost-url1.83.0 pipx bash-completion vim sudo ruby ruby-bundler ruby-dev build-essential git virtuoso-server virtuoso-opensource-7-bin && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y wget python3-yaml unzip curl bzip2 xz-utils zstd pkg-config libicu74 python3-icu libgomp1 uuid-runtime make lbzip2 libjemalloc2 liburing2 libzstd1 libboost-program-options1.83.0 libboost-iostreams1.83.0 libboost-url1.83.0 pipx bash-completion vim sudo ruby ruby-bundler ruby-dev build-essential git virtuoso-server virtuoso-opensource-7-bin && rm -rf /var/lib/apt/lists/*
 
 # Set up user `togo` with temporary sudo rights (which will be removed again
 # by the `docker-entrypoint.sh` script, see there).
@@ -53,7 +57,7 @@ RUN mkdir -p /togo/.local && chown -R togo:togo /togo
 USER togo
 ENV HOME=/togo
 ENV PATH=/qlever:/togo/.local/bin:$PATH
-RUN pipx install qlever
+RUN pipx install "qlever==${QLEVER_VERSION}"
 ENV QLEVER_ARGCOMPLETE_ENABLED=1
 ENV QLEVER_IS_RUNNING_IN_CONTAINER=1
 
