@@ -65,6 +65,12 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.platform-pair }}
           cache-to: type=gha,mode=max,scope=${{ matrix.platform-pair }}
 
+      - name: Smoke test image
+        env:
+          SMOKE_CONTAINER: togopackage-smoke-${{ matrix.platform-pair }}
+          SMOKE_IMAGE: ${{ env.REGISTRY_IMAGE }}@${{ steps.build.outputs.digest }}
+        run: scripts/smoke-test-image.sh "${SMOKE_IMAGE}" "${SMOKE_CONTAINER}" 10005
+
       - name: Export digest
         run: |
           mkdir -p "${{ runner.temp }}/digests"
